@@ -50,10 +50,10 @@ elseif(APPLE)
     target_sources(usb PRIVATE
         libusb/libusb/os/darwin_usb.c
     )
-    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    set(COREFOUNDATION_LIBRARY "-framework CoreFoundation")
     find_library(IOKIT_LIBRARY IOKit)
     find_library(SECURITY_LIBRARY Security)
-    find_library(OBJC_LIBRARY objc)
+    set(OBJC_LIBRARY "-lobjc")
     target_link_libraries(usb PRIVATE
         ${COREFOUNDATION_LIBRARY}
         ${IOKIT_LIBRARY}
