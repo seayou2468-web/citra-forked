@@ -54,6 +54,8 @@ public:
 public:
     VkSurfaceKHR vkSurface;
 
+    void CopySoftwareFramebuffer();
+
 private:
     /// Called when a configuration change affects the minimal size of the window
     void OnMinimalClientAreaChangeRequest(std::pair<u32, u32> minimal_size) override;
@@ -77,4 +79,6 @@ private:
     bool firstInit = true;
 
     bool useOpenGL = false;
+
+    std::vector<u32> software_framebuffer;
 };

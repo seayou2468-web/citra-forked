@@ -1,0 +1,133 @@
+<<<<<<< SEARCH
+    if(!emu_instance->hw_setup) {
+        if (!LibRetro::SetPixelFormat(RETRO_PIXEL_FORMAT_XRGB8888)) {
+            LOG_CRITICAL(Frontend, "XRGB8888 is not supported.");
+            LibRetro::DisplayMessage("XRGB8888 is not supported.");
+            return false;
+        }
+        switch (Settings::values.graphics_api.GetValue()) {
+        case Settings::GraphicsAPI::Vulkan:
+            LOG_INFO(Frontend, "Using Vulkan hw renderer");
+            emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_VULKAN;
+            emu_instance->hw_render.version_major = VK_API_VERSION_1_1;
+            emu_instance->hw_render.version_minor = 0;
+            break;
+        case Settings::GraphicsAPI::OpenGL:
+        default:
+            LOG_INFO(Frontend, "Using OpenGL hw renderer");
+#ifndef HAVE_LIBNX
+            LibRetro::SetHWSharedContext();
+#endif
+#if defined(HAVE_LIBNX)
+            emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+            emu_instance->hw_render.version_major = 0;
+            emu_instance->hw_render.version_minor = 0;
+
+            rglgen_resolve_symbols_custom(&eglGetProcAddress, &rglgen_symbol_map_citra);
+#elif defined(USING_GLES)
+            emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
+            emu_instance->hw_render.version_major = 3;
+            emu_instance->hw_render.version_minor = 2;
+#else
+            emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
+            emu_instance->hw_render.version_major = 3;
+            emu_instance->hw_render.version_minor = 3;
+#endif
+        }
+        emu_instance->hw_render.context_reset = context_reset;
+        emu_instance->hw_render.context_destroy = context_destroy;
+        emu_instance->hw_render.cache_context = false;
+        emu_instance->hw_render.bottom_left_origin = true;
+        if (!LibRetro::SetHWRenderer(&emu_instance->hw_render)) {
+            LOG_CRITICAL(Frontend, "Failed to set HW renderer");
+            LibRetro::DisplayMessage("Failed to set HW renderer");
+            return false;
+        }
+
+        if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Vulkan) {
+            LibRetro::SetVkDeviceCallbacks(vk_create_device, nullptr);
+        }
+
+        emu_instance->hw_setup = true;
+    }
+=======
+    if(!emu_instance->hw_setup) {
+        if (!LibRetro::SetPixelFormat(RETRO_PIXEL_FORMAT_XRGB8888)) {
+            LOG_CRITICAL(Frontend, "XRGB8888 is not supported.");
+            LibRetro::DisplayMessage("XRGB8888 is not supported.");
+            return false;
+        }
+        const auto graphics_api = Settings::values.graphics_api.GetValue();
+        if (graphics_api == Settings::GraphicsAPI::Software) {
+            LOG_INFO(Frontend, "Using Software renderer");
+            emu_instance->hw_setup = true;
+        } else {
+            switch (graphics_api) {
+            case Settings::GraphicsAPI::Vulkan:
+                LOG_INFO(Frontend, "Using Vulkan hw renderer");
+                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_VULKAN;
+                emu_instance->hw_render.version_major = VK_API_VERSION_1_1;
+                emu_instance->hw_render.version_minor = 0;
+                break;
+            case Settings::GraphicsAPI::OpenGL:
+            default:
+                LOG_INFO(Frontend, "Using OpenGL hw renderer");
+#ifndef HAVE_LIBNX
+                LibRetro::SetHWSharedContext();
+#endif
+#if defined(HAVE_LIBNX)
+                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+                emu_instance->hw_render.version_major = 0;
+                emu_instance->hw_render.version_minor = 0;
+
+                rglgen_resolve_symbols_custom(&eglGetProcAddress, &rglgen_symbol_map_citra);
+#elif defined(USING_GLES)
+                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
+                emu_instance->hw_render.version_major = 3;
+                emu_instance->hw_render.version_minor = 2;
+#else
+                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
+                emu_instance->hw_render.version_major = 3;
+                emu_instance->hw_render.version_minor = 3;
+#endif
+            }
+            emu_instance->hw_render.context_reset = context_reset;
+            emu_instance->hw_render.context_destroy = context_destroy;
+            emu_instance->hw_render.cache_context = false;
+            emu_instance->hw_render.bottom_left_origin = true;
+            if (!LibRetro::SetHWRenderer(&emu_instance->hw_render)) {
+                LOG_CRITICAL(Frontend, "Failed to set HW renderer");
+                LibRetro::DisplayMessage("Failed to set HW renderer");
+                return false;
+            }
+
+            if (graphics_api == Settings::GraphicsAPI::Vulkan) {
+                LibRetro::SetVkDeviceCallbacks(vk_create_device, nullptr);
+            }
+
+            emu_instance->hw_setup = true;
+        }
+    }
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    switch (Settings::values.graphics_api.GetValue()) {
+    case Settings::GraphicsAPI::Vulkan:
+    {
+        static_cast<Vulkan::RendererVulkan*>(VideoCore::g_renderer.get())->CreateMainWindow();
+        break;
+    }
+    case Settings::GraphicsAPI::OpenGL:
+    default:
+=======
+    switch (Settings::values.graphics_api.GetValue()) {
+    case Settings::GraphicsAPI::Vulkan:
+    {
+        static_cast<Vulkan::RendererVulkan*>(VideoCore::g_renderer.get())->CreateMainWindow();
+        break;
+    }
+    case Settings::GraphicsAPI::Software:
+        // Software renderer is initialized in VideoCore::Init
+        break;
+    case Settings::GraphicsAPI::OpenGL:
+    default:
+>>>>>>> REPLACE

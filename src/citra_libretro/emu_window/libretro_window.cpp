@@ -12,7 +12,8 @@
 #include "common/settings.h"
 #include "core/3ds.h"
 #include "video_core/renderer_opengl/gl_state.h"
-
+#include "video_core/video_core.h"
+#include "video_core/renderer_software/renderer_software.h"
 
 
 /// LibRetro expects a "default" GL state.
@@ -73,9 +74,16 @@ void EmuWindow_LibRetro::SwapBuffers() {
         ResetGLState();
         current_state.Apply();
     } else {
-        LibRetro::UploadVideoFrame(RETRO_HW_FRAME_BUFFER_VALID,
-                                static_cast<unsigned>(width),
-                                static_cast<unsigned>(height), 0);
+        if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
+            CopySoftwareFramebuffer();
+            LibRetro::UploadVideoFrame(software_framebuffer.data(),
+                                    static_cast<unsigned>(width),
+                                    static_cast<unsigned>(height), width * 4);
+        } else {
+            LibRetro::UploadVideoFrame(RETRO_HW_FRAME_BUFFER_VALID,
+                                    static_cast<unsigned>(width),
+                                    static_cast<unsigned>(height), 0);
+        }
     }
 }
 
@@ -201,12 +209,19 @@ void EmuWindow_LibRetro::UpdateLayout() {
     width = baseX;
     height = baseY;
 
+    if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
+        software_framebuffer.resize(width * height);
+    }
+
     UpdateCurrentFramebufferLayout(baseX, baseY);
 
     doCleanFrame = true;
 }
 
 bool EmuWindow_LibRetro::ShouldDeferRendererInit() {
+    if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
+        return false;
+    }
     // Do not defer renderer init after first init, used for savestates
     if(!firstInit) return false;
     firstInit = false;
@@ -236,4 +251,57 @@ void EmuWindow_LibRetro::CreateContext() {
 
 void EmuWindow_LibRetro::DestroyContext() {
     tracker = nullptr;
+}
+
+void EmuWindow_LibRetro::CopySoftwareFramebuffer() {
+    auto renderer = static_cast<SwRenderer::RendererSoftware*>(VideoCore::g_renderer.get());
+    if (!renderer) {
+        return;
+    }
+
+    const auto& layout = GetFramebufferLayout();
+
+    // Clear buffer
+    std::fill(software_framebuffer.begin(), software_framebuffer.end(), 0);
+
+    auto copy_screen = [&](VideoCore::ScreenId id, const Common::Rectangle<u32>& rect) {
+        if (rect.GetWidth() == 0 || rect.GetHeight() == 0) {
+            return;
+        }
+        const auto& screen = renderer->Screen(id);
+        if (screen.pixels.empty()) {
+            return;
+        }
+
+        u32 src_w = screen.width;
+        u32 src_h = screen.height;
+        u32 dst_w = rect.GetWidth();
+        u32 dst_h = rect.GetHeight();
+
+        // RendererSoftware outputs are column-major in memory:
+        // screen.pixels[ (x * screen.height + y) * 4 ]
+
+        for (u32 y = 0; y < dst_h; y++) {
+            for (u32 x = 0; x < dst_w; x++) {
+                u32 src_x = (x * src_w) / dst_w;
+                u32 src_y = (y * src_h) / dst_h;
+
+                if (src_x >= src_w) src_x = src_w - 1;
+                if (src_y >= src_h) src_y = src_h - 1;
+
+                const u8* src = &screen.pixels[(src_x * src_h + src_y) * 4];
+                // src is {A, B, G, R} from DecodeRGBA8
+                // We want 0xRRGGBB
+                u32 color = (static_cast<u32>(src[3]) << 16) | (static_cast<u32>(src[2]) << 8) | static_cast<u32>(src[1]);
+
+                u32 di = (rect.top + y) * width + (rect.left + x);
+                if (di < software_framebuffer.size()) {
+                    software_framebuffer[di] = color;
+                }
+            }
+        }
+    };
+
+    copy_screen(VideoCore::ScreenId::TopLeft, layout.top_screen);
+    copy_screen(VideoCore::ScreenId::Bottom, layout.bottom_screen);
 }
