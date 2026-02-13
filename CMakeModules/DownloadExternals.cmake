@@ -120,17 +120,25 @@ function(download_moltenvk)
     set(MOLTENVK_DIR "${CMAKE_BINARY_DIR}/externals/MoltenVK")
     set(MOLTENVK_TAR "${CMAKE_BINARY_DIR}/externals/MoltenVK.tar")
     if (NOT EXISTS ${MOLTENVK_DIR})
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/externals")
         if (NOT EXISTS ${MOLTENVK_TAR})
+            message(STATUS "Downloading MoltenVK...")
             file(DOWNLOAD https://github.com/KhronosGroup/MoltenVK/releases/latest/download/MoltenVK-all.tar
                 ${MOLTENVK_TAR} SHOW_PROGRESS)
         endif()
 
+        message(STATUS "Extracting MoltenVK...")
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf "${MOLTENVK_TAR}"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/externals")
     endif()
 
     # Add the MoltenVK library path to the prefix so find_library can locate it.
-    list(APPEND CMAKE_PREFIX_PATH "${MOLTENVK_DIR}/MoltenVK/dylib/${MOLTENVK_PLATFORM}")
+    list(APPEND CMAKE_PREFIX_PATH
+        "${MOLTENVK_DIR}/MoltenVK/dylib/${MOLTENVK_PLATFORM}"
+        "${MOLTENVK_DIR}/MoltenVK/static/${MOLTENVK_PLATFORM}"
+        "${MOLTENVK_DIR}/MoltenVK/static"
+        "${MOLTENVK_DIR}/static/${MOLTENVK_PLATFORM}"
+    )
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} PARENT_SCOPE)
 endfunction()
 
