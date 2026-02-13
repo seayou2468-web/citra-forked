@@ -27,6 +27,324 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 if (APPLE)
+    # Silence warnings on empty objects, for example when platform-specific code is #ifdef'd out.
+    set(CMAKE_C_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+    set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+
+    if (IOS)
+        # Minimum iOS 14
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0")
+        set(CITRA_FORCE_INTERPRETER ON CACHE BOOL "Force use of CPU interpreter instead of JIT" FORCE)
+        set(ENABLE_LIBRETRO ON CACHE BOOL "Enable the LibRetro frontend" FORCE)
+
+        # iOS-specific build settings
+        set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO CACHE STRING "")
+        set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "" CACHE STRING "")
+        set(CMAKE_OSX_SYSROOT "iphoneos" CACHE STRING "")
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
+
+        # Enable searching CMAKE_PREFIX_PATH for bundled dependencies.
+        set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
+        set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+        set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
+    else()
+        # Minimum macOS 11
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
+    endif()
+endif()
+
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(IS_DEBUG_BUILD ON)
+    set(IS_RELEASE_BUILD OFF)
+else()
+    set(IS_DEBUG_BUILD OFF)
+    set(IS_RELEASE_BUILD ON)
+endif()
+
+# LTO takes too much memory and time using MSVC.
+if (NOT MSVC AND NOT MINGW AND IS_RELEASE_BUILD)
+    set(DEFAULT_ENABLE_LTO ON)
+else()
+    set(DEFAULT_ENABLE_LTO OFF)
+endif()
+
+option(ENABLE_SDL2 "Enable using SDL2" OFF)
+CMAKE_DEPENDENT_OPTION(ENABLE_SDL2_FRONTEND "Enable the SDL2 frontend" ON "ENABLE_SDL2;NOT ANDROID AND NOT IOS" OFF)
+option(USE_SYSTEM_SDL2 "Use the system SDL2 lib (instead of the bundled one)" OFF)
+
+# Set bundled qt as dependent options.
+option(ENABLE_QT "Enable the Qt frontend" ON)
+option(ENABLE_QT_TRANSLATION "Enable translations for the Qt frontend" OFF)
+CMAKE_DEPENDENT_OPTION(ENABLE_QT_UPDATER "Enable built-in updater for the Qt frontend" ON "NOT IOS" OFF)
+
+CMAKE_DEPENDENT_OPTION(ENABLE_TESTS "Enable generating tests executable" ON "NOT IOS" OFF)
+CMAKE_DEPENDENT_OPTION(ENABLE_DEDICATED_ROOM "Enable generating dedicated room executable" ON "NOT ANDROID AND NOT IOS" OFF)
+
+option(ENABLE_WEB_SERVICE "Enable web services (telemetry, etc.)" ON)
+option(ENABLE_SCRIPTING "Enable RPC server for scripting" ON)
+
+# TODO: cubeb currently causes issues on macOS, see: https://github.com/mozilla/cubeb/issues/771
+CMAKE_DEPENDENT_OPTION(ENABLE_CUBEB "Enables the cubeb audio backend" ON "NOT APPLE" OFF)
+option(ENABLE_OPENAL "Enables the OpenAL audio backend" ON)
+
+CMAKE_DEPENDENT_OPTION(ENABLE_LIBUSB "Enable libusb for GameCube Adapter support" ON "NOT IOS" OFF)
+
+option(USE_DISCORD_PRESENCE "Enables Discord Rich Presence" OFF)
+
+CMAKE_DEPENDENT_OPTION(CITRA_ENABLE_BUNDLE_TARGET "Enable the distribution bundling target." ON "NOT ANDROID AND NOT IOS" OFF)
+
+# Compile options
+CMAKE_DEPENDENT_OPTION(COMPILE_WITH_DWARF "Add DWARF debugging information" ${IS_DEBUG_BUILD} "MINGW" OFF)
+option(ENABLE_LTO "Enable link time optimization" ${DEFAULT_ENABLE_LTO})
+option(CITRA_USE_PRECOMPILED_HEADERS "Use precompiled headers" ON)
+option(CITRA_WARNINGS_AS_ERRORS "Enable warnings as errors" ON)
+
+include(CitraHandleSystemLibs)
+
+if (CITRA_USE_PRECOMPILED_HEADERS)
+    message(STATUS "Using Precompiled Headers.")
+    set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+
+    # This ensures that pre-compiled headers won't invalidate build caches for every fresh checkout.
+    if(NOT MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        list(APPEND CMAKE_CXX_COMPILE_OPTIONS_CREATE_PCH -Xclang -fno-pch-timestamp)
+    endif()
+endif()
+
+if(NOT EXISTS ${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit)
+    message(STATUS "Copying pre-commit hook")
+    file(COPY hooks/pre-commit
+        DESTINATION ${PROJECT_SOURCE_DIR}/.git/hooks)
+endif()
+
+# Use ccache for android if available
+# =======================================================================
+if (NOT $ENV{NDK_CCACHE} EQUAL "")
+    set(CCACHE_EXE $ENV{NDK_CCACHE})
+    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_EXE})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_EXE})
+endif()
+
+# Check for LTO support
+# =======================================================================
+if (ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT supported OUTPUT error_msg)
+
+    if (supported)
+        message(STATUS "LTO enabled")
+    else()
+        message(STATUS "LTO enabled but is unavailable, disabling: ${error_msg}")
+        set(ENABLE_LTO OFF)
+    endif()
+else()
+    message(STATUS "LTO disabled")
+endif()
+
+# Sanity check : Check that all submodules are present
+# =======================================================================
+
+function(check_submodules_present)
+    file(READ "${PROJECT_SOURCE_DIR}/.gitmodules" gitmodules)
+    string(REGEX MATCHALL "path *= *[^ \t\r\n]*" gitmodules ${gitmodules})
+    foreach(module ${gitmodules})
+        string(REGEX REPLACE "path *= *" "" module ${module})
+        if (NOT EXISTS "${PROJECT_SOURCE_DIR}/${module}/.git")
+            message(SEND_ERROR "Git submodule ${module} not found."
+                    "Please run: git submodule update --init --recursive")
+        endif()
+    endforeach()
+endfunction()
+if (EXISTS "${PROJECT_SOURCE_DIR}/.git/objects")
+    # only check submodules when source is obtained via Git
+    check_submodules_present()
+endif()
+
+configure_file(${PROJECT_SOURCE_DIR}/dist/compatibility_list/compatibility_list.qrc
+               ${PROJECT_BINARY_DIR}/dist/compatibility_list/compatibility_list.qrc
+               COPYONLY)
+if (ENABLE_COMPATIBILITY_LIST_DOWNLOAD AND NOT EXISTS ${PROJECT_BINARY_DIR}/dist/compatibility_list/compatibility_list.json)
+    message(STATUS "Downloading compatibility list for citra...")
+    file(DOWNLOAD
+        https://api.citra-emu.org/gamedb/
+        "${PROJECT_BINARY_DIR}/dist/compatibility_list/compatibility_list.json" SHOW_PROGRESS)
+endif()
+if (EXISTS ${PROJECT_SOURCE_DIR}/dist/compatibility_list/compatibility_list.json)
+    file(COPY "${PROJECT_SOURCE_DIR}/dist/compatibility_list/compatibility_list.json"
+        DESTINATION "${PROJECT_BINARY_DIR}/dist/compatibility_list/")
+endif()
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/dist/compatibility_list/compatibility_list.json)
+    file(WRITE ${PROJECT_BINARY_DIR}/dist/compatibility_list/compatibility_list.json "")
+endif()
+
+# Detect current compilation architecture and create standard definitions
+# =======================================================================
+
+if (CITRA_FORCE_INTERPRETER)
+    add_definitions(-DBOOST_PREDEF_ARCHITECTURE_ARM_H=1)
+    add_definitions(-DBOOST_PREDEF_ARCHITECTURE_X86_H=1)
+    set(ARCHITECTURE "GENERIC" CACHE STRING "Target architecture" FORCE)
+endif()
+
+include(CheckSymbolExists)
+function(detect_architecture symbol arch)
+    if (NOT DEFINED ARCHITECTURE)
+        set(CMAKE_REQUIRED_QUIET 1)
+        check_symbol_exists("${symbol}" "" ARCHITECTURE_${arch})
+        unset(CMAKE_REQUIRED_QUIET)
+
+        # The output variable needs to be unique across invocations otherwise
+        # CMake's crazy scope rules will keep it defined
+        if (ARCHITECTURE_${arch})
+            set(ARCHITECTURE "${arch}" PARENT_SCOPE)
+        endif()
+    endif()
+endfunction()
+
+if (NOT ENABLE_GENERIC)
+    if (CMAKE_OSX_ARCHITECTURES)
+        set(ARCHITECTURE "${CMAKE_OSX_ARCHITECTURES}")
+    elseif (MSVC)
+        detect_architecture("_M_AMD64" x86_64)
+        detect_architecture("_M_IX86" x86)
+        detect_architecture("_M_ARM" arm)
+        detect_architecture("_M_ARM64" arm64)
+    else()
+        detect_architecture("__x86_64__" x86_64)
+        detect_architecture("__i386__" x86)
+        detect_architecture("__arm__" arm)
+        detect_architecture("__aarch64__" arm64)
+    endif()
+endif()
+if (NOT DEFINED ARCHITECTURE)
+    set(ARCHITECTURE "GENERIC")
+endif()
+message(STATUS "Target architecture: ${ARCHITECTURE}")
+
+
+# Configure C++ standard
+# ===========================
+
+# boost asio's concept usage doesn't play nicely with some compilers yet.
+add_definitions(-DBOOST_ASIO_DISABLE_CONCEPTS)
+# boost can have issues compiling with C++17 and up on newer versions of Clang.
+add_definitions(-DBOOST_NO_CXX98_FUNCTION_BASE)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Apply consistent visibility settings.
+set(CMAKE_CXX_VISIBILITY_PRESET default)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN NO)
+
+# set up output paths for executable binaries
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin/$<CONFIG>)
+
+
+if (NOT MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+    if (MINGW)
+        add_definitions(-DMINGW_HAS_SECURE_API)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -gdwarf")
+
+        if (MINGW_STATIC_BUILD)
+            add_definitions(-DQT_STATICPLUGIN)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+        endif()
+    endif()
+else()
+    # Silence "deprecation" warnings
+    add_definitions(/D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE /D_SCL_SECURE_NO_WARNINGS)
+    # Avoid windows.h junk
+    add_definitions(/DNOMINMAX)
+    # Avoid windows.h from including some usually unused libs like winsocks.h, since this might cause some redefinition errors.
+    add_definitions(/DWIN32_LEAN_AND_MEAN)
+
+    set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
+
+    # Tweak optimization settings
+    # As far as I can tell, there's no way to override the CMake defaults while leaving user
+    # changes intact, so we'll just clobber everything and say sorry.
+    message(STATUS "Cache compiler flags ignored, please edit CMakeLists.txt to change the flags.")
+
+    # /W3 - Level 3 warnings
+    # /MP - Multi-threaded compilation
+    # /Zi - Output debugging information
+    # /Zo - enhanced debug info for optimized builds
+    # /permissive- - enables stricter C++ standards conformance checks
+    set(CMAKE_C_FLAGS   "/W3 /MP /Zi /Zo /permissive-" CACHE STRING "" FORCE)
+    # /EHsc - C++-only exception handling semantics
+    # /std:c++latest - Latest available C++ standard
+    # /Zc:throwingNew - let codegen assume `operator new` will never return null
+    # /Zc:inline - let codegen omit inline functions in object files
+    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} /EHsc /std:c++latest /Zc:throwingNew,inline" CACHE STRING "" FORCE)
+
+    # /MDd - Multi-threaded Debug Runtime DLL
+    set(CMAKE_C_FLAGS_DEBUG   "/Od /MDd" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}" CACHE STRING "" FORCE)
+
+    # /O2 - Optimization level 2
+    # /GS- - No stack buffer overflow checks
+    # /MD - Multi-threaded runtime DLL
+    set(CMAKE_C_FLAGS_RELEASE   "/O2 /GS- /MD" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "" FORCE)
+
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG   "/DEBUG /MANIFEST:NO" CACHE STRING "" FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/DEBUG /MANIFEST:NO /INCREMENTAL:NO /OPT:REF,ICF" CACHE STRING "" FORCE)
+endif()
+
+# Set file offset size to 64 bits.
+#
+# On modern Unixes, this is typically already the case. The lone exception is
+# glibc, which may default to 32 bits. glibc allows this to be configured
+# by setting _FILE_OFFSET_BITS.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_definitions(-D_FILE_OFFSET_BITS=64)
+endif()
+
+add_definitions(-DSINGLETHREADED)
+# CMake seems to only define _DEBUG on Windows
+set_property(DIRECTORY APPEND PROPERTY
+    COMPILE_DEFINITIONS $<$<CONFIG:Debug>:_DEBUG> $<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
+
+math(EXPR EMU_ARCH_BITS ${CMAKE_SIZEOF_VOID_P}*8)
+add_definitions(-DEMU_ARCH_BITS=${EMU_ARCH_BITS})
+
+# System imported libraries
+# ======================
+
+# Prefer the -pthread flag on Linux.
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+if (ENABLE_QT)
+    if (NOT USE_SYSTEM_QT)
+        download_qt(6.6.0)
+    endif()
+
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia Concurrent)
+
+    if (UNIX AND NOT APPLE)
+        find_package(Qt6 REQUIRED COMPONENTS DBus)
+    endif()
+
+    if (ENABLE_QT_TRANSLATION)
+        find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+    endif()
+endif()
+
+# Use system tsl::robin_map if available (otherwise we fallback to version bundled with dynarmic)
+find_package(tsl-robin-map QUIET)
+
+# Platform-specific library requirements
+# ======================================
+
+if (APPLE)
     if (NOT USE_SYSTEM_MOLTENVK)
         download_moltenvk()
     endif()
@@ -48,15 +366,15 @@ if (APPLE)
         find_library(COREGRAPHICS_LIBRARY CoreGraphics REQUIRED)
         find_library(QUARTZCORE_LIBRARY QuartzCore REQUIRED)
         find_library(METAL_LIBRARY Metal REQUIRED)
+        find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
         find_library(AUDIOTOOLBOX_LIBRARY AudioToolbox REQUIRED)
         find_library(COREAUDIO_LIBRARY CoreAudio REQUIRED)
         find_library(FOUNDATION_LIBRARY Foundation REQUIRED)
+        find_library(SECURITY_LIBRARY Security REQUIRED)
         find_library(COREHAPTICS_LIBRARY CoreHaptics REQUIRED)
         find_library(GAME_CONTROLLER_LIBRARY GameController REQUIRED)
-        find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
         find_library(COREMOTION_LIBRARY CoreMotion REQUIRED)
-        find_library(SECURITY_LIBRARY Security REQUIRED)
-        set(COCOA_LIBRARY ${UIKIT_LIBRARY} ${COREGRAPHICS_LIBRARY} ${QUARTZCORE_LIBRARY} ${METAL_LIBRARY} ${AUDIOTOOLBOX_LIBRARY} ${COREAUDIO_LIBRARY} ${FOUNDATION_LIBRARY} ${COREHAPTICS_LIBRARY} ${GAME_CONTROLLER_LIBRARY} ${COREVIDEO_LIBRARY} ${COREMOTION_LIBRARY} ${SECURITY_LIBRARY})
+        set(COCOA_LIBRARY ${UIKIT_LIBRARY} ${COREGRAPHICS_LIBRARY} ${QUARTZCORE_LIBRARY} ${METAL_LIBRARY} ${COREVIDEO_LIBRARY} ${AUDIOTOOLBOX_LIBRARY} ${COREAUDIO_LIBRARY} ${FOUNDATION_LIBRARY} ${SECURITY_LIBRARY} ${COREHAPTICS_LIBRARY} ${GAME_CONTROLLER_LIBRARY} ${COREMOTION_LIBRARY})
     else()
         # Umbrella framework for everything GUI-related
         find_library(COCOA_LIBRARY Cocoa REQUIRED)
