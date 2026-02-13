@@ -583,5 +583,8 @@ if(IOS)
         "-framework Foundation"
         "-framework CoreFoundation"
         "-framework ObjectiveC"
+        "-framework Metal"
+        "-framework QuartzCore"
+        "-framework CoreVideo"
     )
 endif()
