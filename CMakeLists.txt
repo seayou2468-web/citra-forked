@@ -39,6 +39,12 @@ if (APPLE)
         set(CITRA_FORCE_INTERPRETER ON CACHE BOOL "Force use of CPU interpreter instead of JIT" FORCE)
         set(ENABLE_LIBRETRO ON CACHE BOOL "Enable the LibRetro frontend" FORCE)
 
+        # iOS-specific build settings
+        set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO CACHE STRING "")
+        set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "" CACHE STRING "")
+        set(CMAKE_OSX_SYSROOT "iphoneos" CACHE STRING "")
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
+
         # Enable searching CMAKE_PREFIX_PATH for bundled dependencies.
         set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
         set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
