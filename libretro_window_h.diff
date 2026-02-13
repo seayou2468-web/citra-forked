@@ -1,0 +1,28 @@
+<<<<<<< SEARCH
+    /// Destroys a currently running OpenGL context.
+    void DestroyContext();
+
+public:
+    VkSurfaceKHR vkSurface;
+=======
+    /// Destroys a currently running OpenGL context.
+    void DestroyContext();
+
+public:
+    VkSurfaceKHR vkSurface;
+
+    void CopySoftwareFramebuffer();
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    bool firstInit = true;
+
+    bool useOpenGL = false;
+};
+=======
+    bool firstInit = true;
+
+    bool useOpenGL = false;
+
+    std::vector<u32> software_framebuffer;
+};
+>>>>>>> REPLACE

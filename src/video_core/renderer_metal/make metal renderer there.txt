@@ -1,3 +1,0 @@
-case Settings::GraphicsAPI::Metal: // ← 追加
-        g_renderer = std::make_unique<Metal::RendererMetal>(system, emu_window, secondary_window);
-        break;

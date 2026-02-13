@@ -21,7 +21,6 @@ enum class GraphicsAPI {
     Software = 0,
     OpenGL = 1,
     Vulkan = 2,
-    Metal = 3, // ← 追加
 };
 
 enum class InitClock : u32 {
@@ -451,7 +450,7 @@ struct Values {
     GraphicsAPI::Vulkan,     // それ以外
 #endif
     GraphicsAPI::Software,    // 最小値
-    GraphicsAPI::Metal,       // 最大値（将来対応）
+    GraphicsAPI::Vulkan,       // 最大値（将来対応）
     "graphics_api"            // ラベル
 };
 
