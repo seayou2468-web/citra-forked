@@ -1,5 +1,6 @@
 name: iOS Build
 on: [push, pull_request]
+  workflow_dispatch:
 jobs:
   build:
     runs-on: macos-latest
@@ -7,10 +8,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          recursive-submodules-depth: 1
       - name: Set up Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
-      - name: Install dependencies
-        run: brew install ninja
       - name: Build
         run: ./build-libretro-ios.sh
       - name: Upload Artifact
