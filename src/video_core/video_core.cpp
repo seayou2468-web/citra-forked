@@ -47,9 +47,6 @@ void Init(Frontend::EmuWindow& emu_window, Frontend::EmuWindow* secondary_window
     case Settings::GraphicsAPI::OpenGL:
         g_renderer = std::make_unique<OpenGL::RendererOpenGL>(system, emu_window, secondary_window);
         break;
-    case Settings::GraphicsAPI::Metal: // ← 追加
-        g_renderer = std::make_unique<Metal::RendererMetal>(system, emu_window, secondary_window);
-        break;
     default:
         LOG_CRITICAL(Render, "Unknown graphics API {}, using OpenGL", graphics_api);
         g_renderer = std::make_unique<OpenGL::RendererOpenGL>(system, emu_window, secondary_window);
