@@ -18,6 +18,7 @@ include(CMakeDependentOption)
 project(citra LANGUAGES C CXX ASM)
 
 option(ENABLE_LIBRETRO "Enable the LibRetro frontend" ON)
+option(CITRA_FORCE_INTERPRETER "Force use of CPU interpreter instead of JIT" OFF)
 
 # Some submodules like to pick their own default build type if not specified.
 # Make sure we default to Release build type always, unless the generator has custom types.
@@ -35,6 +36,8 @@ if (APPLE)
     if (IOS)
         # Minimum iOS 14
         set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0")
+        set(CITRA_FORCE_INTERPRETER ON CACHE BOOL "Force use of CPU interpreter instead of JIT" FORCE)
+        set(ENABLE_LIBRETRO ON CACHE BOOL "Enable the LibRetro frontend" FORCE)
 
         # Enable searching CMAKE_PREFIX_PATH for bundled dependencies.
         set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
@@ -172,6 +175,12 @@ endif()
 
 # Detect current compilation architecture and create standard definitions
 # =======================================================================
+
+if (CITRA_FORCE_INTERPRETER)
+    add_definitions(-DBOOST_PREDEF_ARCHITECTURE_ARM_H=1)
+    add_definitions(-DBOOST_PREDEF_ARCHITECTURE_X86_H=1)
+    set(ARCHITECTURE "GENERIC" CACHE STRING "Target architecture" FORCE)
+endif()
 
 include(CheckSymbolExists)
 function(detect_architecture symbol arch)
