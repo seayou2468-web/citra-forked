@@ -121,6 +121,11 @@ if (MSVC)
 endif()
 
 # Glad
+
+# tsl-robin-map
+if (NOT TARGET tsl::robin_map)
+    add_subdirectory(dynarmic/externals/robin-map EXCLUDE_FROM_ALL)
+endif()
 add_subdirectory(glad)
 
 # glslang

@@ -498,7 +498,7 @@ if (ENABLE_SCRIPTING)
     )
 endif()
 
-if ("x86_64" IN_LIST ARCHITECTURE OR "arm64" IN_LIST ARCHITECTURE)
+if (NOT CITRA_FORCE_INTERPRETER AND ("x86_64" IN_LIST ARCHITECTURE OR "arm64" IN_LIST ARCHITECTURE))
     target_sources(citra_core PRIVATE
         arm/dynarmic/arm_dynarmic.cpp
         arm/dynarmic/arm_dynarmic.h
