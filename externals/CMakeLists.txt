@@ -120,12 +120,12 @@ if (MSVC)
     add_subdirectory(getopt)
 endif()
 
-# Glad
-
 # tsl-robin-map
 if (NOT TARGET tsl::robin_map)
     add_subdirectory(dynarmic/externals/robin-map EXCLUDE_FROM_ALL)
 endif()
+
+# Glad
 add_subdirectory(glad)
 
 # glslang
