@@ -381,8 +381,14 @@ if (APPLE)
     endif()
 
     find_library(AVFOUNDATION_LIBRARY AVFoundation REQUIRED)
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
+    if (IOS)
+        set(OBJC_LIBRARY "-lobjc")
+    else()
+        find_library(OBJC_LIBRARY objc REQUIRED)
+    endif()
     find_library(IOSURFACE_LIBRARY IOSurface REQUIRED)
-    set(PLATFORM_LIBRARIES ${COCOA_LIBRARY} ${AVFOUNDATION_LIBRARY} ${IOSURFACE_LIBRARY} ${MOLTENVK_LIBRARY})
+    set(PLATFORM_LIBRARIES ${COCOA_LIBRARY} ${AVFOUNDATION_LIBRARY} ${IOSURFACE_LIBRARY} ${MOLTENVK_LIBRARY} ${COREFOUNDATION_LIBRARY} ${OBJC_LIBRARY})
 elseif (WIN32)
     set(PLATFORM_LIBRARIES winmm ws2_32)
     if (MINGW)
@@ -572,19 +578,4 @@ if(UNIX)
         install(FILES "${PROJECT_SOURCE_DIR}/dist/citra-qt.6"
                 DESTINATION "${CMAKE_INSTALL_PREFIX}/share/man/man6")
     endif()
-endif()
-
-# ファイル: src/citra_libretro/CMakeLists.txt
-
-if(IOS)
-    target_link_libraries(citra_libretro
-        PRIVATE
-        ${PLATFORM_LIBRARIES}
-        "-framework Foundation"
-        "-framework CoreFoundation"
-        "-framework ObjectiveC"
-        "-framework Metal"
-        "-framework QuartzCore"
-        "-framework CoreVideo"
-    )
 endif()
