@@ -14,7 +14,6 @@
 #include "video_core/renderer_opengl/renderer_opengl.h"
 #include "video_core/renderer_software/renderer_software.h"
 #include "video_core/renderer_vulkan/renderer_vulkan.h"
-#include "video_core/renderer_metal/renderer_metal.h"
 #include "video_core/video_core.h"
 
 namespace VideoCore {
