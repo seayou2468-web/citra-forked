@@ -573,3 +573,15 @@ if(UNIX)
                 DESTINATION "${CMAKE_INSTALL_PREFIX}/share/man/man6")
     endif()
 endif()
+
+# ファイル: src/citra_libretro/CMakeLists.txt
+
+if(IOS)
+    target_link_libraries(citra_libretro
+        PRIVATE
+        ${PLATFORM_LIBRARIES}
+        "-framework Foundation"
+        "-framework CoreFoundation"
+        "-framework ObjectiveC"
+    )
+endif()
