@@ -14,15 +14,16 @@
 #include "video_core/renderer_opengl/renderer_opengl.h"
 #include "video_core/renderer_software/renderer_software.h"
 #include "video_core/renderer_vulkan/renderer_vulkan.h"
+#include "video_core/renderer_metal/renderer_metal.h"
 #include "video_core/video_core.h"
 
 namespace VideoCore {
 
 std::unique_ptr<RendererBase> g_renderer{}; ///< Renderer plugin
 
-std::atomic<bool> g_shader_jit_enabled;
-std::atomic<bool> g_hw_shader_enabled;
-std::atomic<bool> g_hw_shader_accurate_mul;
+std::atomic<bool> g_shader_jit_enabled = false;
+std::atomic<bool> g_hw_shader_enabled = true;
+std::atomic<bool> g_hw_shader_accurate_mul = true;
 
 Memory::MemorySystem* g_memory;
 
@@ -46,6 +47,9 @@ void Init(Frontend::EmuWindow& emu_window, Frontend::EmuWindow* secondary_window
         break;
     case Settings::GraphicsAPI::OpenGL:
         g_renderer = std::make_unique<OpenGL::RendererOpenGL>(system, emu_window, secondary_window);
+        break;
+    case Settings::GraphicsAPI::Metal: // ← 追加
+        g_renderer = std::make_unique<Metal::RendererMetal>(system, emu_window, secondary_window);
         break;
     default:
         LOG_CRITICAL(Render, "Unknown graphics API {}, using OpenGL", graphics_api);

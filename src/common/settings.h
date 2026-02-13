@@ -21,6 +21,7 @@ enum class GraphicsAPI {
     Software = 0,
     OpenGL = 1,
     Vulkan = 2,
+    Metal = 3, // ← 追加
 };
 
 enum class InitClock : u32 {
@@ -424,7 +425,7 @@ struct Values {
     SwitchableSetting<bool> enable_gamemode{true, "enable_gamemode"};
 
     // Core
-    Setting<bool> use_cpu_jit{true, "use_cpu_jit"};
+    Setting<bool> use_cpu_jit{false, "use_cpu_jit"};
     SwitchableSetting<s32, true> cpu_clock_percentage{100, 5, 400, "cpu_clock_percentage"};
     SwitchableSetting<bool> is_new_3ds{true, "is_new_3ds"};
 
@@ -442,12 +443,18 @@ struct Values {
 
     // Renderer
     SwitchableSetting<GraphicsAPI, true> graphics_api{
-#ifdef HAS_OPENGL
-        GraphicsAPI::OpenGL,
+#if defined(__APPLE__)
+    GraphicsAPI::Software,   // iOS/Mac のデフォルト
+#elif defined(HAS_OPENGL)
+    GraphicsAPI::OpenGL,     // OpenGL がある場合
 #else
-        GraphicsAPI::Vulkan,
+    GraphicsAPI::Vulkan,     // それ以外
 #endif
-        GraphicsAPI::Software, GraphicsAPI::Vulkan, "graphics_api"};
+    GraphicsAPI::Software,    // 最小値
+    GraphicsAPI::Metal,       // 最大値（将来対応）
+    "graphics_api"            // ラベル
+};
+
     SwitchableSetting<u32> physical_device{0, "physical_device"};
     Setting<bool> use_gles{false, "use_gles"};
     Setting<bool> renderer_debug{false, "renderer_debug"};
