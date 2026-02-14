@@ -39,8 +39,11 @@ set(HASH_FILES
 )
 set(COMBINED "")
 foreach (F IN LISTS HASH_FILES)
-    file(READ ${F} TMP)
-    set(COMBINED "${COMBINED}${TMP}")
+    if(EXISTS ${F})
+        file(READ ${F} TMP)
+        set(COMBINED "${COMBINED}${TMP}")
+    endif()
 endforeach()
+
 string(MD5 SHADER_CACHE_VERSION "${COMBINED}")
 configure_file("${SRC_DIR}/src/common/scm_rev.cpp.in" "scm_rev.cpp" @ONLY)
