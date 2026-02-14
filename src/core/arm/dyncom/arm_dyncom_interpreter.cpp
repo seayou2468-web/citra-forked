@@ -845,7 +845,7 @@ static int InterpreterTranslateBlock(ARMul_State* cpu, std::size_t& bb_start, u3
         ret = inst_base->br;
     };
 
-    cpu->instruction_cache[(pc_start >> 2) & 0x3FFFF] = {pc_start, (u32)bb_start};
+    cpu->instruction_cache[(pc_start >> 1) & 0x3FFFF] = {pc_start, (u32)bb_start};
 
     return KEEP_GOING;
 }
@@ -865,7 +865,7 @@ static int InterpreterTranslateSingle(ARMul_State* cpu, std::size_t& bb_start, u
         inst_base->br = TransExtData::SINGLE_STEP;
     }
 
-    cpu->instruction_cache[(pc_start >> 2) & 0x3FFFF] = {pc_start, (u32)bb_start};
+    cpu->instruction_cache[(pc_start >> 1) & 0x3FFFF] = {pc_start, (u32)bb_start};
 
     return KEEP_GOING;
 }
@@ -1623,7 +1623,7 @@ DISPATCH : {
 
     // Find the cached instruction cream, otherwise translate it...
     const u32 jmp_pc = cpu->Reg[15];
-    const u32 jmp_idx = (jmp_pc >> 2) & 0x3FFFF;
+    const u32 jmp_idx = (jmp_pc >> 1) & 0x3FFFF;
     if (__builtin_expect(cpu->instruction_cache[jmp_idx].tag == jmp_pc, 1)) {
         ptr = cpu->instruction_cache[jmp_idx].ptr;
     } else {
@@ -1749,7 +1749,7 @@ BBL_INST : {
         }
         SET_PC;
         const u32 jmp_addr = cpu->Reg[15];
-        const u32 cache_idx = (jmp_addr >> 2) & 0x3FFFF;
+        const u32 cache_idx = (jmp_addr >> 1) & 0x3FFFF;
         if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
             __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
             ptr = cpu->instruction_cache[cache_idx].ptr;
@@ -1851,7 +1851,7 @@ BXJ_INST : {
         cpu->TFlag = address & 1;
         cpu->Reg[15] = address & 0xfffffffe;
         const u32 jmp_addr = cpu->Reg[15];
-        const u32 cache_idx = (jmp_addr >> 2) & 0x3FFFF;
+        const u32 cache_idx = (jmp_addr >> 1) & 0x3FFFF;
         if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
             __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
             ptr = cpu->instruction_cache[cache_idx].ptr;
