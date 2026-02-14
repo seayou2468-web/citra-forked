@@ -3,6 +3,7 @@
 
 #include <gamemode_client.h>
 
+#include "common/logging/log.h"
 #include "common/linux/gamemode.h"
 #include "common/settings.h"
 

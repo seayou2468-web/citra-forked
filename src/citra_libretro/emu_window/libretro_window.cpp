@@ -2,7 +2,6 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include <glad/glad.h>
 #include <libretro.h>
 
 #include "audio_core/audio_types.h"
@@ -11,49 +10,13 @@
 #include "citra_libretro/input/input_factory.h"
 #include "common/settings.h"
 #include "core/3ds.h"
-#include "video_core/renderer_opengl/gl_state.h"
 #include "video_core/video_core.h"
 #include "video_core/renderer_software/renderer_software.h"
 
 
-/// LibRetro expects a "default" GL state.
-void ResetGLState() {
-    // Reset internal state.
-    OpenGL::OpenGLState state{};
-    state.Apply();
 
-    // Clean up global state.
-    if (!Settings::values.use_gles) {
-        glLogicOp(GL_COPY);
-    }
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glDepthMask(GL_TRUE);
-
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-    glDisable(GL_STENCIL_TEST);
-    glStencilFunc(GL_ALWAYS, 0, 0xFFFFFFFF);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ZERO);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
-    glBlendColor(0, 0, 0, 0);
-
-    glDisable(GL_COLOR_LOGIC_OP);
-
-    glDisable(GL_DITHER);
-
-    glDisable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-
-    glActiveTexture(GL_TEXTURE0);
-}
-
-EmuWindow_LibRetro::EmuWindow_LibRetro(bool useOpenGL_) {
-    useOpenGL = useOpenGL_;
+EmuWindow_LibRetro::EmuWindow_LibRetro() {
     strict_context_required = true;
     window_info.type = Frontend::WindowSystemType::LibRetro;
 }
@@ -62,49 +25,20 @@ EmuWindow_LibRetro::~EmuWindow_LibRetro() {}
 
 void EmuWindow_LibRetro::SwapBuffers() {
     submittedFrame = true;
-
-    if (useOpenGL) {
-        auto current_state = OpenGL::OpenGLState::GetCurState();
-        ResetGLState();
-        if (enableEmulatedPointer) {
-            tracker->Render(width, height);
-        }
-        LibRetro::UploadVideoFrame(RETRO_HW_FRAME_BUFFER_VALID, static_cast<unsigned>(width),
-                               static_cast<unsigned>(height), 0);
-        ResetGLState();
-        current_state.Apply();
-    } else {
-        if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
-            CopySoftwareFramebuffer();
-            LibRetro::UploadVideoFrame(software_framebuffer.data(),
-                                    static_cast<unsigned>(width),
-                                    static_cast<unsigned>(height), width * 4);
-        } else {
-            LibRetro::UploadVideoFrame(RETRO_HW_FRAME_BUFFER_VALID,
-                                    static_cast<unsigned>(width),
-                                    static_cast<unsigned>(height), 0);
-        }
-    }
+    CopySoftwareFramebuffer();
+    LibRetro::UploadVideoFrame(software_framebuffer.data(),
+                            static_cast<unsigned>(width),
+                            static_cast<unsigned>(height), width * 4);
 }
 
-void EmuWindow_LibRetro::SetupFramebuffer() {
-    // TODO: Expose interface in renderer_opengl to configure this in it's internal state
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(LibRetro::GetFramebuffer()));
-
-    // glClear can be a slow path - skip clearing if we don't need to.
-    if (doCleanFrame) {
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        doCleanFrame = false;
-    }
-}
+void EmuWindow_LibRetro::SetupFramebuffer() {}
 
 void EmuWindow_LibRetro::PollEvents() {
     LibRetro::PollInput();
 
     // TODO: Poll for right click for motion emu
 
-    if (enableEmulatedPointer) {
+    if (true) {
         tracker->Update(width, height, GetFramebufferLayout().bottom_screen);
 
         if (tracker->IsPressed()) {
@@ -144,7 +78,7 @@ void EmuWindow_LibRetro::UpdateLayout() {
 
     bool swapped = Settings::values.swap_screen.GetValue();
 
-    enableEmulatedPointer = useOpenGL;
+    enableEmulatedPointer = true;
 
     switch (Settings::values.layout_option.GetValue()) {
     case Settings::LayoutOption::SingleScreen:
@@ -209,26 +143,14 @@ void EmuWindow_LibRetro::UpdateLayout() {
     width = baseX;
     height = baseY;
 
-    if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
-        software_framebuffer.resize(width * height);
-    }
+    software_framebuffer.resize(width * height);
 
     UpdateCurrentFramebufferLayout(baseX, baseY);
 
     doCleanFrame = true;
 }
 
-bool EmuWindow_LibRetro::ShouldDeferRendererInit() {
-    if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
-        return false;
-    }
-    // Do not defer renderer init after first init, used for savestates
-    if(!firstInit) return false;
-    firstInit = false;
-
-    // load_game doesn't always provide a GL context.
-    return true;
-}
+bool EmuWindow_LibRetro::ShouldDeferRendererInit() { return false; }
 
 bool EmuWindow_LibRetro::NeedsClearing() const {
     // We manage this ourselves.
@@ -242,10 +164,7 @@ bool EmuWindow_LibRetro::HasSubmittedFrame() {
 }
 
 void EmuWindow_LibRetro::CreateContext() {
-    if (useOpenGL) {
-        tracker = std::make_unique<LibRetro::Input::MouseTracker>();
-    }
-
+    tracker = std::make_unique<LibRetro::Input::MouseTracker>();
     doCleanFrame = true;
 }
 

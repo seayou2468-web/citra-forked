@@ -1,0 +1,45 @@
+<<<<<<< SEARCH
+#include "core/arm/dynarmic/arm_dynarmic.h"
+=======
+#if !defined(CITRA_FORCE_INTERPRETER)
+#include "core/arm/dynarmic/arm_dynarmic.h"
+#endif
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    exclusive_monitor = MakeExclusiveMonitor(*memory, num_cores);
+    cpu_cores.reserve(num_cores);
+#ifdef ARCHITECTURE_arm64
+    if (Settings::values.use_cpu_jit) {
+        for (u32 i = 0; i < num_cores; ++i) {
+            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(
+                *this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
+        }
+    } else {
+=======
+    exclusive_monitor = MakeExclusiveMonitor(*memory, num_cores);
+    cpu_cores.reserve(num_cores);
+#if defined(ARCHITECTURE_arm64) && !defined(CITRA_FORCE_INTERPRETER)
+    if (Settings::values.use_cpu_jit) {
+        for (u32 i = 0; i < num_cores; ++i) {
+            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(
+                *this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
+        }
+    } else {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+#ifdef ARCHITECTURE_x86_64
+    if (Settings::values.use_cpu_jit) {
+        for (u32 i = 0; i < num_cores; ++i) {
+            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(
+                *this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
+        }
+    } else {
+=======
+#if defined(ARCHITECTURE_x86_64) && !defined(CITRA_FORCE_INTERPRETER)
+    if (Settings::values.use_cpu_jit) {
+        for (u32 i = 0; i < num_cores; ++i) {
+            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(
+                *this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
+        }
+    } else {
+>>>>>>> REPLACE

@@ -1,4 +1,4 @@
-add_subdirectory(host_shaders)
+
 
 add_library(video_core STATIC
     command_processor.cpp
@@ -21,8 +21,6 @@ add_library(video_core STATIC
     precompiled_headers.h
     primitive_assembly.cpp
     primitive_assembly.h
-    rasterizer_accelerated.cpp
-    rasterizer_accelerated.h
     rasterizer_interface.h
     regs.cpp
     regs.h
@@ -50,38 +48,6 @@ add_library(video_core STATIC
     rasterizer_cache/texture_cube.h
     rasterizer_cache/utils.cpp
     rasterizer_cache/utils.h
-    renderer_opengl/frame_dumper_opengl.cpp
-    renderer_opengl/frame_dumper_opengl.h
-    renderer_opengl/gl_blit_helper.cpp
-    renderer_opengl/gl_blit_helper.h
-    renderer_opengl/gl_driver.cpp
-    renderer_opengl/gl_driver.h
-    renderer_opengl/gl_rasterizer.cpp
-    renderer_opengl/gl_rasterizer.h
-    renderer_opengl/gl_rasterizer_cache.cpp
-    renderer_opengl/gl_resource_manager.cpp
-    renderer_opengl/gl_resource_manager.h
-    renderer_opengl/gl_shader_disk_cache.cpp
-    renderer_opengl/gl_shader_disk_cache.h
-    renderer_opengl/gl_shader_manager.cpp
-    renderer_opengl/gl_shader_manager.h
-    renderer_opengl/gl_shader_util.cpp
-    renderer_opengl/gl_shader_util.h
-    renderer_opengl/gl_state.cpp
-    renderer_opengl/gl_state.h
-    renderer_opengl/gl_stream_buffer.cpp
-    renderer_opengl/gl_stream_buffer.h
-    renderer_opengl/gl_texture_mailbox.cpp
-    renderer_opengl/gl_texture_mailbox.h
-    renderer_opengl/gl_texture_runtime.cpp
-    renderer_opengl/gl_texture_runtime.h
-    renderer_opengl/gl_vars.cpp
-    renderer_opengl/gl_vars.h
-    renderer_opengl/pica_to_gl.h
-    renderer_opengl/post_processing_opengl.cpp
-    renderer_opengl/post_processing_opengl.h
-    renderer_opengl/renderer_opengl.cpp
-    renderer_opengl/renderer_opengl.h
     renderer_software/renderer_software.cpp
     renderer_software/renderer_software.h
     renderer_software/sw_clipper.cpp
@@ -96,72 +62,11 @@ add_library(video_core STATIC
     renderer_software/sw_rasterizer.h
     renderer_software/sw_texturing.cpp
     renderer_software/sw_texturing.h
-    renderer_vulkan/pica_to_vk.h
-    renderer_vulkan/renderer_vulkan.cpp
-    renderer_vulkan/renderer_vulkan.h
-    renderer_vulkan/vk_blit_helper.cpp
-    renderer_vulkan/vk_blit_helper.h
-    renderer_vulkan/vk_common.cpp
-    renderer_vulkan/vk_common.h
-    renderer_vulkan/vk_descriptor_pool.cpp
-    renderer_vulkan/vk_descriptor_pool.h
-    renderer_vulkan/vk_graphics_pipeline.cpp
-    renderer_vulkan/vk_graphics_pipeline.h
-    renderer_vulkan/vk_master_semaphore.cpp
-    renderer_vulkan/vk_master_semaphore.h
-    renderer_vulkan/vk_memory_util.cpp
-    renderer_vulkan/vk_memory_util.h
-    renderer_vulkan/vk_rasterizer.cpp
-    renderer_vulkan/vk_rasterizer.h
-    renderer_vulkan/vk_rasterizer_cache.cpp
-    renderer_vulkan/vk_scheduler.cpp
-    renderer_vulkan/vk_scheduler.h
-    renderer_vulkan/vk_resource_pool.cpp
-    renderer_vulkan/vk_resource_pool.h
-    renderer_vulkan/vk_instance.cpp
-    renderer_vulkan/vk_instance.h
-    renderer_vulkan/vk_pipeline_cache.cpp
-    renderer_vulkan/vk_pipeline_cache.h
-    renderer_vulkan/vk_platform.cpp
-    renderer_vulkan/vk_platform.h
-    renderer_vulkan/vk_present_window.cpp
-    renderer_vulkan/vk_present_window.h
-    renderer_vulkan/vk_renderpass_cache.cpp
-    renderer_vulkan/vk_renderpass_cache.h
-    renderer_vulkan/vk_shader_util.cpp
-    renderer_vulkan/vk_shader_util.h
-    renderer_vulkan/vk_stream_buffer.cpp
-    renderer_vulkan/vk_stream_buffer.h
-    renderer_vulkan/vk_swapchain.cpp
-    renderer_vulkan/vk_swapchain.h
-    renderer_vulkan/vk_texture_runtime.cpp
-    renderer_vulkan/vk_texture_runtime.h
     shader/debug_data.h
-    shader/generator/glsl_fs_shader_gen.cpp
-    shader/generator/glsl_fs_shader_gen.h
-    shader/generator/glsl_shader_decompiler.cpp
-    shader/generator/glsl_shader_decompiler.h
-    shader/generator/glsl_shader_gen.cpp
-    shader/generator/glsl_shader_gen.h
-    shader/generator/pica_fs_config.cpp
-    shader/generator/pica_fs_config.h
-    shader/generator/profile.h
-    shader/generator/shader_gen.cpp
-    shader/generator/shader_gen.h
-    shader/generator/shader_uniforms.cpp
-    shader/generator/shader_uniforms.h
-    shader/generator/spv_fs_shader_gen.cpp
-    shader/generator/spv_fs_shader_gen.h
     shader/shader.cpp
     shader/shader.h
     shader/shader_interpreter.cpp
     shader/shader_interpreter.h
-    shader/shader_jit.cpp
-    shader/shader_jit.h
-    shader/shader_jit_a64_compiler.cpp
-    shader/shader_jit_a64_compiler.h
-    shader/shader_jit_x64_compiler.cpp
-    shader/shader_jit_x64_compiler.h
     texture/etc1.cpp
     texture/etc1.h
     texture/texture_decode.cpp
@@ -173,14 +78,33 @@ add_library(video_core STATIC
     video_core.h
 )
 
-add_dependencies(video_core host_shaders)
-target_include_directories(video_core PRIVATE ${HOST_SHADERS_INCLUDE})
+
+
+
+
+if ("x86_64" IN_LIST ARCHITECTURE)
+    target_sources(video_core PRIVATE
+        shader/shader_jit.cpp
+        shader/shader_jit.h
+        shader/shader_jit_x64_compiler.cpp
+        shader/shader_jit_x64_compiler.h
+    )
+endif()
+
+if ("arm64" IN_LIST ARCHITECTURE)
+    target_sources(video_core PRIVATE
+        shader/shader_jit.cpp
+        shader/shader_jit.h
+        shader/shader_jit_a64_compiler.cpp
+        shader/shader_jit_a64_compiler.h
+    )
+endif()
 
 create_target_directory_groups(video_core)
 
 target_link_libraries(video_core PUBLIC citra_common citra_core)
 target_link_libraries(video_core PRIVATE Boost::serialization dds-ktx json-headers nihstro-headers tsl::robin_map)
-target_link_libraries(video_core PRIVATE vulkan-headers vma glad sirit SPIRV glslang)
+target_link_libraries(video_core PRIVATE )
 
 if ("x86_64" IN_LIST ARCHITECTURE)
     target_link_libraries(video_core PUBLIC xbyak)

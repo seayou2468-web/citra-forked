@@ -17,7 +17,13 @@
 #include "core/hle/service/hid/hid.h"
 #include "core/hle/service/ir/ir_user.h"
 #if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+#if !defined(CITRA_FORCE_INTERPRETER)
+#if !defined(CITRA_FORCE_INTERPRETER)
+#if !defined(CITRA_FORCE_INTERPRETER)
 #include "core/arm/dynarmic/arm_dynarmic.h"
+#endif
+#endif
+#endif
 #endif
 #include "core/arm/dyncom/arm_dyncom.h"
 #include "core/cheats/cheats.h"
@@ -386,21 +392,17 @@ System::ResultStatus System::Init(Frontend::EmuWindow& emu_window,
 
     exclusive_monitor = MakeExclusiveMonitor(*memory, num_cores);
     cpu_cores.reserve(num_cores);
-    if (Settings::values.use_cpu_jit) {
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
-        for (u32 i = 0; i < num_cores; ++i) {
-            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(
-                *this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
-        }
-#else
-        for (u32 i = 0; i < num_cores; ++i) {
-            cpu_cores.push_back(
-                std::make_shared<ARM_DynCom>(*this, *memory, USER32MODE, i, timing->GetTimer(i)));
-        }
-        LOG_WARNING(Core, "CPU JIT requested, but Dynarmic not available");
+    for (u32 i = 0; i < num_cores; ++i) {
+        bool used_jit = false;
+#if !defined(CITRA_FORCE_INTERPRETER)
+        if (Settings::values.use_cpu_jit) {
+#if defined(ARCHITECTURE_x86_64) || defined(ARCHITECTURE_arm64)
+            cpu_cores.push_back(std::make_shared<ARM_Dynarmic>(*this, *memory, i, timing->GetTimer(i), *exclusive_monitor));
+            used_jit = true;
 #endif
-    } else {
-        for (u32 i = 0; i < num_cores; ++i) {
+        }
+#endif
+        if (!used_jit) {
             cpu_cores.push_back(
                 std::make_shared<ARM_DynCom>(*this, *memory, USER32MODE, i, timing->GetTimer(i)));
         }

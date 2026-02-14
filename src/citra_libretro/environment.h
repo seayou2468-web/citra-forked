@@ -12,7 +12,7 @@
 #include "common/settings.h"
 #include "core/core.h"
 #include "libretro.h"
-#include "libretro_vulkan.h"
+
 
 namespace LibRetro {
 
@@ -27,7 +27,7 @@ void PollInput();
 /// Sets the environmental variables used for settings.
 bool SetVariables(const retro_variable vars[]);
 
-bool SetHWSharedContext(void);
+
 
 /// Returns the LibRetro save directory, or a empty string if one doesn't exist.
 std::string GetSaveDir();
@@ -44,7 +44,7 @@ retro_log_printf_t GetLoggingBackend();
 /// Returns graphics api based on global frontend setting
 Settings::GraphicsAPI GetPrefferedHWRenderer();
 
-const struct retro_hw_render_interface_vulkan* GetHWRenderInterfaceVulkan();
+
 
 /// Displays information about the kinds of controllers that this Citra recreates.
 bool SetControllerInfo(const retro_controller_info info[]);
@@ -55,7 +55,7 @@ bool SetPixelFormat(const retro_pixel_format fmt);
 /// Sets the H/W rendering context.
 bool SetHWRenderer(retro_hw_render_callback* cb);
 
-bool SetVkDeviceCallbacks(const retro_vulkan_create_device_t vk_create_device, const retro_vulkan_destroy_device_t vk_destroy_device);
+
 
 /// Sets the async audio callback.
 bool SetAudioCallback(retro_audio_callback* cb);
@@ -83,7 +83,7 @@ void SubmitAudio(const int16_t* data, size_t frames);
 bool HasUpdatedConfig();
 
 /// Returns the current framebuffer.
-uintptr_t GetFramebuffer();
+
 
 /// Tells the frontend that we are done.
 bool Shutdown();
