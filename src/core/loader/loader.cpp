@@ -6,6 +6,7 @@
 #include <string>
 #include "common/logging/log.h"
 #include "common/string_util.h"
+#include "core/file_sys/cia_container.h"
 #include "core/hle/kernel/process.h"
 #include "core/loader/3dsx.h"
 #include "core/loader/elf.h"
@@ -95,8 +96,13 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileUtil::IOFile&& file, FileTyp
     case FileType::CCI:
     case FileType::CXI:
         return std::make_unique<AppLoader_NCCH>(std::move(file), filepath);
-    case FileType::CIA:
+    case FileType::CIA: {
+        FileSys::CIAContainer cia;
+        if (cia.Load(filepath) == ResultStatus::Success) {
+            return std::make_unique<AppLoader_NCCH>(std::move(file), filepath, static_cast<u32>(cia.GetContentOffset(0)));
+        }
         return std::make_unique<AppLoader_NCCH>(std::move(file), filepath, 0);
+    }
     case FileType::THREEDSX:
         return std::make_unique<AppLoader_THREEDSX>(std::move(file), filename, filepath);
     case FileType::ELF:

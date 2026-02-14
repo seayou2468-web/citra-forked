@@ -56,15 +56,29 @@ void Framebuffer::DrawPixel(u32 x, u32 y, const Common::Vec4<u8>& color) const {
         }
         break;
     }
-    case Pica::FramebufferRegs::ColorFormat::RGB8:
-        Common::Color::EncodeRGB8(color, dst_pixel);
+    case Pica::FramebufferRegs::ColorFormat::RGB8: {
+        u8 temp[3];
+        Common::Color::EncodeRGB8(color, temp);
+        if (__builtin_expect(std::memcmp(dst_pixel, temp, 3) != 0, 1)) {
+            std::memcpy(dst_pixel, temp, 3);
+        }
         break;
+    }
     case Pica::FramebufferRegs::ColorFormat::RGB5A1:
         Common::Color::EncodeRGB5A1(color, dst_pixel);
         break;
-    case Pica::FramebufferRegs::ColorFormat::RGB565:
-        Common::Color::EncodeRGB565(color, dst_pixel);
+    case Pica::FramebufferRegs::ColorFormat::RGB565: {
+        u16 old_val;
+        std::memcpy(&old_val, dst_pixel, 2);
+        u8 temp[2];
+        Common::Color::EncodeRGB565(color, temp);
+        u16 new_val;
+        std::memcpy(&new_val, temp, 2);
+        if (__builtin_expect(old_val != new_val, 1)) {
+            std::memcpy(dst_pixel, &new_val, 2);
+        }
         break;
+    }
     case Pica::FramebufferRegs::ColorFormat::RGBA4:
         Common::Color::EncodeRGBA4(color, dst_pixel);
         break;
@@ -99,7 +113,6 @@ const Common::Vec4<u8> Framebuffer::GetPixel(u32 x, u32 y) const {
     default:
         LOG_CRITICAL(Render_Software, "Unknown framebuffer color format {:x}",
                      static_cast<u32>(framebuffer.color_format.Value()));
-        UNIMPLEMENTED();
     }
 
     return {0, 0, 0, 0};

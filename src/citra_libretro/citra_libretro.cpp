@@ -516,7 +516,7 @@ void retro_run() {
         // Execute until a frame is submitted or a timeout occurs.
     auto start_time = std::chrono::steady_clock::now();
     while (!emu_instance->emu_window->HasSubmittedFrame()) {
-        auto result = Core::System::GetInstance().RunLoop(false);
+        auto result = Core::System::GetInstance().RunLoop(true);
         if (__builtin_expect(result != Core::System::ResultStatus::Success, 0)) {
             break;
         }
