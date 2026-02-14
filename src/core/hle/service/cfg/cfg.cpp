@@ -28,7 +28,7 @@
 #include "core/hle/service/cfg/cfg_nor.h"
 #include "core/hle/service/cfg/cfg_s.h"
 #include "core/hle/service/cfg/cfg_u.h"
-#include "citra_libretro/core_settings.h"
+
 #include "core/loader/loader.h"
 
 SERVICE_CONSTRUCT_IMPL(Service::CFG::Module)
@@ -662,7 +662,7 @@ void Module::UpdatePreferredRegionCode() {
         return;
     }
     // Apply language set in core options first
-    SetSystemLanguage(LibRetro::settings.language_value);
+    // SetSystemLanguage(LibRetro::settings.language_value);
 
     preferred_region_chosen = true;
 

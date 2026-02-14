@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common/arch.h"
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+
 
 #include <memory>
 #include <unordered_map>
@@ -23,11 +23,13 @@ public:
 
     void SetupBatch(ShaderSetup& setup, u32 entry_point) override;
     void Run(const ShaderSetup& setup, UnitState& state) const override;
+    void ClearCache();
 
 private:
+#if (CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)) && !defined(CITRA_FORCE_INTERPRETER)
     std::unordered_map<u64, std::unique_ptr<JitShader>> cache;
+#endif
 };
 
 } // namespace Pica::Shader
 
-#endif // CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)

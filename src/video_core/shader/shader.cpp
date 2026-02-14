@@ -13,9 +13,7 @@
 #include "video_core/regs_shader.h"
 #include "video_core/shader/shader.h"
 #include "video_core/shader/shader_interpreter.h"
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
 #include "video_core/shader/shader_jit.h"
-#endif // CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
 #include "video_core/video_core.h"
 
 namespace Pica::Shader {
@@ -35,23 +33,13 @@ void OutputVertex::ValidateSemantics(const RasterizerRegs& regs) {
 
 OutputVertex OutputVertex::FromAttributeBuffer(const RasterizerRegs& regs,
                                                const AttributeBuffer& input) {
-    // Setup output data
     union {
         OutputVertex ret{};
-        // Allow us to overflow OutputVertex to avoid branches, since
-        // RasterizerRegs::VSOutputAttributes::INVALID would write to slot 31, which
-        // would be out of bounds otherwise.
         std::array<f24, 32> vertex_slots_overflow;
     };
-
-    // Some games use attributes without setting them in GPUREG_SH_OUTMAP_Oi
-    // Hardware tests have shown that they are initialized to 1.f in this case.
     vertex_slots_overflow.fill(f24::One());
-
-    // Assert that OutputVertex has enough space for 24 semantic registers
     static_assert(sizeof(std::array<f24, 24>) == sizeof(ret),
                   "Struct and array have different sizes.");
-
     u32 num_attributes = regs.vs_output_total & 7;
     for (std::size_t attrib = 0; attrib < num_attributes; ++attrib) {
         const auto output_register_map = regs.vs_output_attributes[attrib];
@@ -60,30 +48,15 @@ OutputVertex OutputVertex::FromAttributeBuffer(const RasterizerRegs& regs,
         vertex_slots_overflow[output_register_map.map_z] = input.attr[attrib][2];
         vertex_slots_overflow[output_register_map.map_w] = input.attr[attrib][3];
     }
-
-    // The hardware takes the absolute and saturates vertex colors like this, *before* doing
-    // interpolation
     for (u32 i = 0; i < 4; ++i) {
         float c = std::fabs(ret.color[i].ToFloat32());
         ret.color[i] = f24::FromFloat32(c < 1.0f ? c : 1.0f);
     }
-
-    LOG_TRACE(HW_GPU,
-              "Output vertex: pos({:.2}, {:.2}, {:.2}, {:.2}), quat({:.2}, {:.2}, {:.2}, {:.2}), "
-              "col({:.2}, {:.2}, {:.2}, {:.2}), tc0({:.2}, {:.2}), view({:.2}, {:.2}, {:.2})",
-              ret.pos.x.ToFloat32(), ret.pos.y.ToFloat32(), ret.pos.z.ToFloat32(),
-              ret.pos.w.ToFloat32(), ret.quat.x.ToFloat32(), ret.quat.y.ToFloat32(),
-              ret.quat.z.ToFloat32(), ret.quat.w.ToFloat32(), ret.color.x.ToFloat32(),
-              ret.color.y.ToFloat32(), ret.color.z.ToFloat32(), ret.color.w.ToFloat32(),
-              ret.tc0.u().ToFloat32(), ret.tc0.v().ToFloat32(), ret.view.x.ToFloat32(),
-              ret.view.y.ToFloat32(), ret.view.z.ToFloat32());
-
     return ret;
 }
 
 void UnitState::LoadInput(const ShaderRegs& config, const AttributeBuffer& input) {
     const u32 max_attribute = config.max_input_attribute_index;
-
     for (u32 attr = 0; attr <= max_attribute; ++attr) {
         u32 reg = config.GetRegisterForAttribute(attr);
         registers.input[reg] = input.attr[attr];
@@ -114,9 +87,7 @@ GSEmitter::~GSEmitter() {
 
 void GSEmitter::Emit(std::span<Common::Vec4<f24>, 16> output_regs) {
     ASSERT(vertex_id < 3);
-    // TODO: This should be merged with UnitState::WriteOutput somehow
     CopyRegistersToOutput(output_regs, output_mask, buffer[vertex_id]);
-
     if (prim_emit) {
         if (winding)
             handlers->winding_setter();
@@ -139,29 +110,37 @@ void GSUnitState::ConfigOutput(const ShaderRegs& config) {
 
 MICROPROFILE_DEFINE(GPU_Shader, "GPU", "Shader", MP_RGB(50, 50, 240));
 
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+#if (CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)) && !defined(CITRA_FORCE_INTERPRETER)
 static std::unique_ptr<JitEngine> jit_engine;
-#endif // CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+#endif
 static InterpreterEngine interpreter_engine;
 
 ShaderEngine* GetEngine() {
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
-    // TODO(yuriks): Re-initialize on each change rather than being persistent
+#if (CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)) && !defined(CITRA_FORCE_INTERPRETER)
     if (VideoCore::g_shader_jit_enabled) {
         if (jit_engine == nullptr) {
             jit_engine = std::make_unique<JitEngine>();
         }
         return jit_engine.get();
     }
-#endif // CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
-
+#endif
     return &interpreter_engine;
 }
 
 void Shutdown() {
-#if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+#if (CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)) && !defined(CITRA_FORCE_INTERPRETER)
     jit_engine.reset();
-#endif // CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+#endif
 }
 
 } // namespace Pica::Shader
+
+#if !((CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)) && !defined(CITRA_FORCE_INTERPRETER))
+namespace Pica::Shader {
+JitEngine::JitEngine() = default;
+JitEngine::~JitEngine() = default;
+void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {}
+void JitEngine::Run(const ShaderSetup& setup, UnitState& state) const {}
+void JitEngine::ClearCache() {}
+}
+#endif
