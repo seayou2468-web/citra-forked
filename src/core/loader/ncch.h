@@ -15,8 +15,8 @@ namespace Loader {
 /// Loads an NCCH file (e.g. from a CCI, or the first NCCH in a CXI)
 class AppLoader_NCCH final : public AppLoader {
 public:
-    AppLoader_NCCH(FileUtil::IOFile&& file, const std::string& filepath)
-        : AppLoader(std::move(file)), base_ncch(filepath), overlay_ncch(&base_ncch),
+    AppLoader_NCCH(FileUtil::IOFile&& file, const std::string& filepath, u32 offset = 0)
+        : AppLoader(std::move(file)), base_ncch(filepath, offset), overlay_ncch(&base_ncch),
           filepath(filepath) {}
 
     /**

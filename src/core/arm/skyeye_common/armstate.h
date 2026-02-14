@@ -145,6 +145,12 @@ enum {
     RUN = 3         // Continuous execution
 };
 
+
+struct fast_cache_entry {
+    u32 tag;
+    u32 ptr;
+};
+
 struct ARMul_State final {
 public:
     explicit ARMul_State(Core::System& system, Memory::MemorySystem& memory,
@@ -208,6 +214,7 @@ public:
 
     Core::System& system;
     Memory::MemorySystem& memory;
+    u8** page_table_pointer = nullptr;
 
     std::array<u32, 16> Reg{}; // The current register file
     std::array<u32, 2> Reg_usr{};
@@ -254,7 +261,7 @@ public:
 
     // TODO(bunnei): Move this cache to a better place - it should be per codeset (likely per
     // process for our purposes), not per ARMul_State (which tracks CPU core state).
-    std::unordered_map<u32, std::size_t> instruction_cache;
+    std::array<fast_cache_entry, 1 << 18> instruction_cache;
 
 private:
     void ResetMPCoreCP15Registers();

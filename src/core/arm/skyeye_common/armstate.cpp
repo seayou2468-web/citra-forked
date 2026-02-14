@@ -104,6 +104,7 @@ void ARMul_State::ChangePrivilegeMode(u32 new_mode) {
 
 // Performs a reset
 void ARMul_State::Reset() {
+    instruction_cache.fill({0xFFFFFFFF, 0});
     VFPInit(this);
 
     // Set stack pointer to the top of the stack
@@ -193,75 +194,111 @@ static void CheckMemoryBreakpoint(u32 address, GDBStub::BreakpointType type) {
 }
 #endif
 
-u8 ARMul_State::ReadMemory8(u32 address) const {
-    CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Read);
+u8 ARMul_State::ReadMemory8(u32 address) const   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            u8 value;
+            std::memcpy(&value, ptr + (address & 0xFFF), sizeof(u8));
 
+            return value;
+        }
+    }
+    CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Read);
     return memory.Read8(address);
 }
 
-u16 ARMul_State::ReadMemory16(u32 address) const {
+u16 ARMul_State::ReadMemory16(u32 address) const   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            u16 value;
+            std::memcpy(&value, ptr + (address & 0xFFF), sizeof(u16));
+            if (__builtin_expect(InBigEndianMode(), 0)) value = Common::swap16(value);
+            return value;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Read);
-
-    u16 data = memory.Read16(address);
-
-    if (InBigEndianMode())
-        data = Common::swap16(data);
-
-    return data;
+    return memory.Read16(address);
 }
 
-u32 ARMul_State::ReadMemory32(u32 address) const {
+u32 ARMul_State::ReadMemory32(u32 address) const   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            u32 value;
+            std::memcpy(&value, ptr + (address & 0xFFF), sizeof(u32));
+            if (__builtin_expect(InBigEndianMode(), 0)) value = Common::swap32(value);
+            return value;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Read);
-
-    u32 data = memory.Read32(address);
-
-    if (InBigEndianMode())
-        data = Common::swap32(data);
-
-    return data;
+    return memory.Read32(address);
 }
 
-u64 ARMul_State::ReadMemory64(u32 address) const {
+u64 ARMul_State::ReadMemory64(u32 address) const   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            u64 value;
+            std::memcpy(&value, ptr + (address & 0xFFF), sizeof(u64));
+            if (__builtin_expect(InBigEndianMode(), 0)) value = Common::swap64(value);
+            return value;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Read);
-
-    u64 data = memory.Read64(address);
-
-    if (InBigEndianMode())
-        data = Common::swap64(data);
-
-    return data;
+    return memory.Read64(address);
 }
 
-void ARMul_State::WriteMemory8(u32 address, u8 data) {
+void ARMul_State::WriteMemory8(u32 address, u8 data)   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+
+            std::memcpy(ptr + (address & 0xFFF), &data, sizeof(u8));
+            return;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Write);
-
     memory.Write8(address, data);
 }
 
-void ARMul_State::WriteMemory16(u32 address, u16 data) {
+void ARMul_State::WriteMemory16(u32 address, u16 data)   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            if (__builtin_expect(InBigEndianMode(), 0)) data = Common::swap16(data);
+            std::memcpy(ptr + (address & 0xFFF), &data, sizeof(u16));
+            return;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Write);
-
-    if (InBigEndianMode())
-        data = Common::swap16(data);
-
     memory.Write16(address, data);
 }
 
-void ARMul_State::WriteMemory32(u32 address, u32 data) {
+void ARMul_State::WriteMemory32(u32 address, u32 data)   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            if (__builtin_expect(InBigEndianMode(), 0)) data = Common::swap32(data);
+            std::memcpy(ptr + (address & 0xFFF), &data, sizeof(u32));
+            return;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Write);
-
-    if (InBigEndianMode())
-        data = Common::swap32(data);
-
     memory.Write32(address, data);
 }
 
-void ARMul_State::WriteMemory64(u32 address, u64 data) {
+void ARMul_State::WriteMemory64(u32 address, u64 data)   {
+    if (__builtin_expect(page_table_pointer != nullptr, 1)) {
+        u8* ptr = page_table_pointer[address >> 12];
+        if (__builtin_expect(ptr != nullptr, 1)) {
+            if (__builtin_expect(InBigEndianMode(), 0)) data = Common::swap64(data);
+            std::memcpy(ptr + (address & 0xFFF), &data, sizeof(u64));
+            return;
+        }
+    }
     CheckMemoryBreakpoint(address, GDBStub::BreakpointType::Write);
-
-    if (InBigEndianMode())
-        data = Common::swap64(data);
-
     memory.Write64(address, data);
 }
 

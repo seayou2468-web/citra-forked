@@ -200,23 +200,20 @@ void EmuWindow_LibRetro::CopySoftwareFramebuffer() {
         // RendererSoftware outputs are column-major in memory:
         // screen.pixels[ (x * screen.height + y) * 4 ]
 
-        for (u32 y = 0; y < dst_h; y++) {
-            for (u32 x = 0; x < dst_w; x++) {
-                u32 src_x = (x * src_w) / dst_w;
-                u32 src_y = (y * src_h) / dst_h;
+        for (u32 x = 0; x < dst_w; x++) {
+            u32 src_x = (x * src_w) / dst_w;
+            if (src_x >= src_w) src_x = src_w - 1;
+            const u32 src_col_offset = src_x * src_h;
 
-                if (src_x >= src_w) src_x = src_w - 1;
+            for (u32 y = 0; y < dst_h; y++) {
+                u32 src_y = (y * src_h) / dst_h;
                 if (src_y >= src_h) src_y = src_h - 1;
 
-                const u8* src = &screen.pixels[(src_x * src_h + src_y) * 4];
-                // src is {A, B, G, R} from DecodeRGBA8
-                // We want 0xRRGGBB
+                const u8* src = &screen.pixels[(src_col_offset + src_y) * 4];
                 u32 color = (static_cast<u32>(src[3]) << 16) | (static_cast<u32>(src[2]) << 8) | static_cast<u32>(src[1]);
 
                 u32 di = (rect.top + y) * width + (rect.left + x);
-                if (di < software_framebuffer.size()) {
-                    software_framebuffer[di] = color;
-                }
+                software_framebuffer[di] = color;
             }
         }
     };

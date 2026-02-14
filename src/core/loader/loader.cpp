@@ -13,6 +13,14 @@
 
 namespace Loader {
 
+static FileType IdentifyFile_CIA(FileUtil::IOFile& file) {
+    u32 magic;
+    file.Seek(0, SEEK_SET);
+    if (file.ReadBytes(&magic, 4) != 4) return FileType::Unknown;
+    if (magic == 0x2020 || magic == 0x2000) return FileType::CIA;
+    return FileType::Unknown;
+}
+
 FileType IdentifyFile(FileUtil::IOFile& file) {
     FileType type;
 
@@ -24,6 +32,8 @@ FileType IdentifyFile(FileUtil::IOFile& file) {
     CHECK_TYPE(THREEDSX)
     CHECK_TYPE(ELF)
     CHECK_TYPE(NCCH)
+
+    if (IdentifyFile_CIA(file) != FileType::Unknown) return FileType::CIA;
 
 #undef CHECK_TYPE
 
@@ -73,40 +83,24 @@ const char* GetFileTypeString(FileType type) {
         return "ELF";
     case FileType::THREEDSX:
         return "3DSX";
-    case FileType::Error:
-    case FileType::Unknown:
-        break;
+    default:
+        return "Unknown";
     }
-
-    return "unknown";
 }
 
-/**
- * Get a loader for a file with a specific type
- * @param file The file to load
- * @param type The type of the file
- * @param filename the file name (without path)
- * @param filepath the file full path (with name)
- * @return std::unique_ptr<AppLoader> a pointer to a loader object;  nullptr for unsupported type
- */
 static std::unique_ptr<AppLoader> GetFileLoader(FileUtil::IOFile&& file, FileType type,
-                                                const std::string& filename,
-                                                const std::string& filepath) {
+                                               const std::string& filename,
+                                               const std::string& filepath) {
     switch (type) {
-
-    // 3DSX file format.
+    case FileType::CCI:
+    case FileType::CXI:
+        return std::make_unique<AppLoader_NCCH>(std::move(file), filepath);
+    case FileType::CIA:
+        return std::make_unique<AppLoader_NCCH>(std::move(file), filepath, 0);
     case FileType::THREEDSX:
         return std::make_unique<AppLoader_THREEDSX>(std::move(file), filename, filepath);
-
-    // Standard ELF file format.
     case FileType::ELF:
         return std::make_unique<AppLoader_ELF>(std::move(file), filename);
-
-    // NCCH/NCSD container formats.
-    case FileType::CXI:
-    case FileType::CCI:
-        return std::make_unique<AppLoader_NCCH>(std::move(file), filepath);
-
     default:
         return nullptr;
     }

@@ -153,7 +153,7 @@ Loader::ResultStatus NCCHContainer::LoadHeader() {
         file.ReadBytes(&ncsd_header, sizeof(NCSD_Header));
         ASSERT(Loader::MakeMagic('N', 'C', 'S', 'D') == ncsd_header.magic);
         ASSERT(partition < 8);
-        ncch_offset = ncsd_header.partitions[partition].offset * kBlockSize;
+        ncch_offset = ncch_offset + ncsd_header.partitions[partition].offset * kBlockSize;
         LOG_ERROR(Service_FS, "{}", ncch_offset);
         file.Seek(ncch_offset, SEEK_SET);
         file.ReadBytes(&ncch_header, sizeof(NCCH_Header));
@@ -186,7 +186,7 @@ Loader::ResultStatus NCCHContainer::Load() {
             file.ReadBytes(&ncsd_header, sizeof(NCSD_Header));
             ASSERT(Loader::MakeMagic('N', 'C', 'S', 'D') == ncsd_header.magic);
             ASSERT(partition < 8);
-            ncch_offset = ncsd_header.partitions[partition].offset * kBlockSize;
+            ncch_offset = ncch_offset + ncsd_header.partitions[partition].offset * kBlockSize;
             file.Seek(ncch_offset, SEEK_SET);
             file.ReadBytes(&ncch_header, sizeof(NCCH_Header));
         }

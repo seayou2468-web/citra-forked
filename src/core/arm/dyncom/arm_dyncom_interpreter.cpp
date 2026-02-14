@@ -34,46 +34,28 @@
 #define ROTATE_LEFT_32(n, i) ROTATE_LEFT(n, i, 32)
 
 static bool CondPassed(const ARMul_State* cpu, unsigned int cond) {
-    const bool n_flag = cpu->NFlag != 0;
-    const bool z_flag = cpu->ZFlag != 0;
-    const bool c_flag = cpu->CFlag != 0;
-    const bool v_flag = cpu->VFlag != 0;
-
+    if (__builtin_expect(cond >= 14, 1)) return true;
+    const bool n = cpu->NFlag != 0;
+    const bool z = cpu->ZFlag != 0;
+    const bool c = cpu->CFlag != 0;
+    const bool v = cpu->VFlag != 0;
     switch (cond) {
-    case ConditionCode::EQ:
-        return z_flag;
-    case ConditionCode::NE:
-        return !z_flag;
-    case ConditionCode::CS:
-        return c_flag;
-    case ConditionCode::CC:
-        return !c_flag;
-    case ConditionCode::MI:
-        return n_flag;
-    case ConditionCode::PL:
-        return !n_flag;
-    case ConditionCode::VS:
-        return v_flag;
-    case ConditionCode::VC:
-        return !v_flag;
-    case ConditionCode::HI:
-        return (c_flag && !z_flag);
-    case ConditionCode::LS:
-        return (!c_flag || z_flag);
-    case ConditionCode::GE:
-        return (n_flag == v_flag);
-    case ConditionCode::LT:
-        return (n_flag != v_flag);
-    case ConditionCode::GT:
-        return (!z_flag && (n_flag == v_flag));
-    case ConditionCode::LE:
-        return (z_flag || (n_flag != v_flag));
-    case ConditionCode::AL:
-    case ConditionCode::NV: // Unconditional
-        return true;
+    case ConditionCode::EQ: return z;
+    case ConditionCode::NE: return !z;
+    case ConditionCode::CS: return c;
+    case ConditionCode::CC: return !c;
+    case ConditionCode::MI: return n;
+    case ConditionCode::PL: return !n;
+    case ConditionCode::VS: return v;
+    case ConditionCode::VC: return !v;
+    case ConditionCode::HI: return c && !z;
+    case ConditionCode::LS: return !c || z;
+    case ConditionCode::GE: return n == v;
+    case ConditionCode::LT: return n != v;
+    case ConditionCode::GT: return !z && (n == v);
+    case ConditionCode::LE: return z || (n != v);
     }
-
-    return false;
+    return true;
 }
 
 static unsigned int DPO(Immediate)(ARMul_State* cpu, unsigned int sht_oper) {
@@ -863,7 +845,7 @@ static int InterpreterTranslateBlock(ARMul_State* cpu, std::size_t& bb_start, u3
         ret = inst_base->br;
     };
 
-    cpu->instruction_cache[pc_start] = bb_start;
+    cpu->instruction_cache[(pc_start >> 2) & 0x3FFFF] = {pc_start, (u32)bb_start};
 
     return KEEP_GOING;
 }
@@ -883,7 +865,7 @@ static int InterpreterTranslateSingle(ARMul_State* cpu, std::size_t& bb_start, u
         inst_base->br = TransExtData::SINGLE_STEP;
     }
 
-    cpu->instruction_cache[pc_start] = bb_start;
+    cpu->instruction_cache[(pc_start >> 2) & 0x3FFFF] = {pc_start, (u32)bb_start};
 
     return KEEP_GOING;
 }
@@ -1640,12 +1622,10 @@ DISPATCH : {
         cpu->Reg[15] &= 0xfffffffc;
 
     // Find the cached instruction cream, otherwise translate it...
-    auto itr = cpu->instruction_cache.find(cpu->Reg[15]);
-    if (itr != cpu->instruction_cache.end()) {
-        ptr = itr->second;
-    } else if (cpu->NumInstrsToExecute != 1) {
-        if (InterpreterTranslateBlock(cpu, ptr, cpu->Reg[15]) == FETCH_EXCEPTION)
-            goto END;
+    const u32 jmp_pc = cpu->Reg[15];
+    const u32 jmp_idx = (jmp_pc >> 2) & 0x3FFFF;
+    if (__builtin_expect(cpu->instruction_cache[jmp_idx].tag == jmp_pc, 1)) {
+        ptr = cpu->instruction_cache[jmp_idx].ptr;
     } else {
         if (InterpreterTranslateSingle(cpu, ptr, cpu->Reg[15]) == FETCH_EXCEPTION)
             goto END;
@@ -1768,7 +1748,15 @@ BBL_INST : {
             LINK_RTN_ADDR;
         }
         SET_PC;
-        INC_PC(sizeof(bbl_inst));
+        const u32 jmp_addr = cpu->Reg[15];
+        const u32 cache_idx = (jmp_addr >> 2) & 0x3FFFF;
+        if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
+            __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
+            ptr = cpu->instruction_cache[cache_idx].ptr;
+            inst_base = (arm_inst*)&trans_cache_buf[ptr];
+            num_instrs++;
+            goto* InstLabel[inst_base->idx];
+        }
         goto DISPATCH;
     }
     cpu->Reg[15] += cpu->GetInstructionSize();
@@ -1862,7 +1850,15 @@ BXJ_INST : {
 
         cpu->TFlag = address & 1;
         cpu->Reg[15] = address & 0xfffffffe;
-        INC_PC(sizeof(bx_inst));
+        const u32 jmp_addr = cpu->Reg[15];
+        const u32 cache_idx = (jmp_addr >> 2) & 0x3FFFF;
+        if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
+            __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
+            ptr = cpu->instruction_cache[cache_idx].ptr;
+            inst_base = (arm_inst*)&trans_cache_buf[ptr];
+            num_instrs++;
+            goto* InstLabel[inst_base->idx];
+        }
         goto DISPATCH;
     }
 

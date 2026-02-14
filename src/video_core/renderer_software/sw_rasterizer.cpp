@@ -307,6 +307,7 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
     for (u16 y = min_y + 8; y < max_y; y += 0x10) {
         const auto process_scanline = [&, y] {
             for (u16 x = min_x + 8; x < max_x; x += 0x10) {
+                __builtin_prefetch(&fb, 1, 3);
                 // Do not process the pixel if it's inside the scissor box and the scissor mode is
                 // set to Exclude.
                 if (regs.rasterizer.scissor_test.mode == RasterizerRegs::ScissorMode::Exclude) {

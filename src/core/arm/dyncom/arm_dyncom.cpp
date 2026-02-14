@@ -32,7 +32,7 @@ void ARM_DynCom::Step() {
 }
 
 void ARM_DynCom::ClearInstructionCache() {
-    state->instruction_cache.clear();
+    state->instruction_cache.fill({0xFFFFFFFF, 0});
     trans_cache_buf_top = 0;
 }
 
@@ -41,6 +41,7 @@ void ARM_DynCom::InvalidateCacheRange(u32, std::size_t) {
 }
 
 void ARM_DynCom::SetPageTable(const std::shared_ptr<Memory::PageTable>& page_table) {
+    state->page_table_pointer = page_table->GetPointerArray().data();
     ClearInstructionCache();
 }
 

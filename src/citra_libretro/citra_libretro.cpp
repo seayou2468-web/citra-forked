@@ -1,3 +1,4 @@
+#include <chrono>
 #include "video_core/renderer_base.h"
 // Copyright 2017 Citra Emulator Project
 // Licensed under GPLv2 or any later version
@@ -512,25 +513,22 @@ void retro_run() {
 
 
 
+        // Execute until a frame is submitted or a timeout occurs.
+    auto start_time = std::chrono::steady_clock::now();
     while (!emu_instance->emu_window->HasSubmittedFrame()) {
-        auto result = Core::System::GetInstance().RunLoop();
-
-        if (result != Core::System::ResultStatus::Success) {
-            std::string errorContent = Core::System::GetInstance().GetStatusDetails();
-            std::string msg;
-
-            switch (result) {
-            case Core::System::ResultStatus::ErrorSystemFiles:
-                msg = "Citra was unable to locate a 3DS system archive: " + errorContent;
-                break;
-            default:
-                msg = "Fatal Error encountered: " + errorContent;
-                break;
-            }
-
-            LibRetro::DisplayMessage(msg.c_str());
+        auto result = Core::System::GetInstance().RunLoop(false);
+        if (__builtin_expect(result != Core::System::ResultStatus::Success, 0)) {
+            break;
         }
+
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+        if (elapsed > 33) break; // Limit to ~33ms per call to maintain responsiveness
     }
+    // We don't reset HasSubmittedFrame here, it's done in the next call if needed,
+    // or handled by the emu_window.
+
+
 }
 
 
