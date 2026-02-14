@@ -338,7 +338,7 @@ Loader::ResultStatus NCCHContainer::Load() {
 
         // System archives and DLC don't have an extended header but have RomFS
         if (ncch_header.extended_header_size) {
-            auto read_exheader = [this](FileUtil::IOFile& file) {
+            auto read_exheader = [this](std::unique_ptr<FileUtil::IOFile>& file) {
                 const std::size_t size = sizeof(exheader_header);
                 return file && file->ReadBytes(&exheader_header, size) == size;
             };
@@ -603,8 +603,8 @@ Loader::ResultStatus NCCHContainer::ApplyCodePatch(std::vector<u8>& code) const 
         if (!patch_file)
             continue;
 
-        std::vector<u8> patch(patch_file->GetSize());
-        if (patch_file->ReadBytes(patch.data(), patch.size()) != patch.size())
+        std::vector<u8> patch(patch_file.GetSize());
+        if (patch_file.ReadBytes(patch.data(), patch.size()) != patch.size())
             return Loader::ResultStatus::Error;
 
         LOG_INFO(Service_FS, "File {} patching code.bin", info.path);
@@ -644,12 +644,12 @@ Loader::ResultStatus NCCHContainer::LoadOverrideExeFSSection(const char* name,
     for (const auto& path : override_paths) {
         FileUtil::IOFile section_file(path, "rb");
 
-        if (section_file->IsOpen()) {
-            auto section_size = section_file->GetSize();
+        if (section_file.IsOpen()) {
+            auto section_size = section_file.GetSize();
             buffer.resize(section_size);
 
-            section_file->Seek(0, SEEK_SET);
-            if (section_file->ReadBytes(buffer.data(), section_size) == section_size) {
+            section_file.Seek(0, SEEK_SET);
+            if (section_file.ReadBytes(buffer.data(), section_size) == section_size) {
                 LOG_WARNING(Service_FS, "File {} overriding built-in ExeFS file", path);
                 return Loader::ResultStatus::Success;
             }

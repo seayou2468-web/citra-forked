@@ -118,6 +118,18 @@ void EmuWindow_LibRetro::UpdateLayout() {
         baseX *= scaling;
         baseY *= scaling;
         break;
+    case Settings::LayoutOption::MobilePortrait:
+        baseX = Core::kScreenTopWidth;
+        baseY = Core::kScreenTopHeight + Core::kScreenBottomHeight;
+        baseX *= scaling;
+        baseY *= scaling;
+        break;
+    case Settings::LayoutOption::MobileLandscape:
+        baseX = Core::kScreenTopWidth + Core::kScreenBottomWidth;
+        baseY = Core::kScreenTopHeight;
+        baseX *= scaling;
+        baseY *= scaling;
+        break;
     case Settings::LayoutOption::Default:
     default:
         baseX = Core::kScreenTopWidth;

@@ -142,8 +142,8 @@ void LibRetro::OnConfigureEnvironment() {
         {"citra_dump_textures", "Dump textures; disabled|enabled"},
         {"citra_resolution_factor",
          "Resolution scale factor; 1x (Native)|2x|3x|4x|5x|6x|7x|8x|9x|10x"},
-        {"citra_layout_option", "Screen layout positioning; Default Top-Bottom Screen|Single "
-                                "Screen Only|Large Screen, Small Screen|Side by Side"},
+        {"citra_layout_option", "Screen layout positioning; Default Top-Bottom Screen|Single Screen Only|Large Screen, Small Screen|Side by Side|Mobile Portrait|Mobile Landscape"
+                                },
         {"citra_swap_screen", "Prominent 3DS screen; Top|Bottom"},
         {"citra_swap_screen_mode", "Swap Screen Mode; Toggle|Hold"},
         {"citra_analog_function",
@@ -317,6 +317,10 @@ void UpdateSettings() {
         Settings::values.layout_option = Settings::LayoutOption::LargeScreen;
     } else if (layout == "Side by Side") {
         Settings::values.layout_option = Settings::LayoutOption::SideScreen;
+    } else if (layout == "Mobile Portrait") {
+        Settings::values.layout_option = Settings::LayoutOption::MobilePortrait;
+    } else if (layout == "Mobile Landscape") {
+        Settings::values.layout_option = Settings::LayoutOption::MobileLandscape;
     } else {
         LOG_ERROR(Frontend, "Unknown layout type: {}.", layout);
         Settings::values.layout_option = Settings::LayoutOption::Default;
