@@ -338,12 +338,13 @@ Loader::ResultStatus NCCHContainer::Load() {
 
         // System archives and DLC don't have an extended header but have RomFS
         if (ncch_header.extended_header_size) {
-            auto read_exheader = [this](std::unique_ptr<FileUtil::IOFile>& file) {
+            auto read_exheader = [this](FileUtil::IOFile* file) {
+                if (!file || !file->IsOpen()) return false;
                 const std::size_t size = sizeof(exheader_header);
-                return file && file->ReadBytes(&exheader_header, size) == size;
+                return file->ReadBytes(&exheader_header, size) == size;
             };
 
-            if (!read_exheader(file)) {
+            if (!read_exheader(file.get())) {
                 return Loader::ResultStatus::Error;
             }
 
@@ -378,7 +379,7 @@ Loader::ResultStatus NCCHContainer::Load() {
             bool has_exheader_override = false;
             for (const auto& path : exheader_override_paths) {
                 FileUtil::IOFile exheader_override_file{path, "rb"};
-                if (read_exheader(exheader_override_file)) {
+                if (read_exheader(&exheader_override_file)) {
                     has_exheader_override = true;
                     break;
                 }
@@ -520,7 +521,7 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
     }
 
     // If we don't have any separate files, we'll need a full ExeFS
-    if (!exefs_file->IsOpen())
+    if (!exefs_file || !exefs_file->IsOpen())
         return Loader::ResultStatus::Error;
 
     LOG_DEBUG(Service_FS, "{} sections:", kMaxSections);
