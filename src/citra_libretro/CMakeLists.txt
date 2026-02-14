@@ -6,10 +6,10 @@ add_library(citra_libretro SHARED
         emu_window/libretro_window.h
         input/input_factory.cpp
         input/input_factory.h
-        input/mouse_tracker.cpp
+
         input/mouse_tracker.h
-        vulkan/vk_swapchain.cpp
-        vulkan/vk_swapchain.h
+
+
         citra_libretro.cpp
         citra_libretro.h
         environment.cpp
@@ -27,7 +27,7 @@ target_compile_definitions(citra_core PRIVATE HAVE_LIBRETRO)
 target_compile_definitions(video_core PRIVATE HAVE_LIBRETRO)
 
 target_link_libraries(citra_libretro PRIVATE citra_common citra_core)
-target_link_libraries(citra_libretro PRIVATE boost dds-ktx glad libretro robin_map sirit vulkan-headers)
+target_link_libraries(citra_libretro PRIVATE boost dds-ktx libretro robin_map)
 target_link_libraries(citra_libretro PRIVATE ${PLATFORM_LIBRARIES} Threads::Threads)
 if(DEFINED LIBRETRO_STATIC)
 target_link_libraries(citra_libretro PRIVATE -static-libstdc++)

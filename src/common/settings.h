@@ -19,8 +19,6 @@ namespace Settings {
 
 enum class GraphicsAPI {
     Software = 0,
-    OpenGL = 1,
-    Vulkan = 2,
 };
 
 enum class InitClock : u32 {
@@ -441,18 +439,7 @@ struct Values {
     Setting<bool> allow_plugin_loader{true, "allow_plugin_loader"};
 
     // Renderer
-    SwitchableSetting<GraphicsAPI, true> graphics_api{
-#if defined(__APPLE__)
-    GraphicsAPI::Software,   // iOS/Mac のデフォルト
-#elif defined(HAS_OPENGL)
-    GraphicsAPI::OpenGL,     // OpenGL がある場合
-#else
-    GraphicsAPI::Vulkan,     // それ以外
-#endif
-    GraphicsAPI::Software,    // 最小値
-    GraphicsAPI::Vulkan,       // 最大値（将来対応）
-    "graphics_api"            // ラベル
-};
+    SwitchableSetting<GraphicsAPI, true> graphics_api{GraphicsAPI::Software, GraphicsAPI::Software, GraphicsAPI::Software, "graphics_api"};
 
     SwitchableSetting<u32> physical_device{0, "physical_device"};
     Setting<bool> use_gles{false, "use_gles"};

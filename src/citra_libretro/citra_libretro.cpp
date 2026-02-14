@@ -1,3 +1,4 @@
+#include "video_core/renderer_base.h"
 // Copyright 2017 Citra Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
@@ -11,12 +12,9 @@
 #include <stdlib.h>
 #include <common/file_util.h>
 
-#include "glad/glad.h"
 #include "libretro.h"
 
 #include "audio_core/libretro_sink.h"
-#include "video_core/renderer_opengl/renderer_opengl.h"
-#include "video_core/renderer_vulkan/renderer_vulkan.h"
 #include "video_core/video_core.h"
 
 #include "citra_libretro/citra_libretro.h"
@@ -177,9 +175,7 @@ void LibRetro::OnConfigureEnvironment() {
     LibRetro::SetControllerInfo(ports);
 }
 
-uintptr_t LibRetro::GetFramebuffer() {
-    return emu_instance->hw_render.get_current_framebuffer();
-}
+
 
 Settings::TextureFilter GetTextureFilter(std::string name) {
     if (name == "Anime4K Ultrafast") return Settings::TextureFilter::Anime4K;
@@ -252,14 +248,7 @@ void UpdateSettings() {
         Settings::values.cpu_clock_percentage = scale;
     }
 
-    auto graphicsApi = std::string("OpenGL");//LibRetro::FetchVariable("citra_graphics_api", "Auto");
-    if (graphicsApi == "Auto") {
-        Settings::values.graphics_api = LibRetro::GetPrefferedHWRenderer();
-    } else if (graphicsApi == "Vulkan") {
-        Settings::values.graphics_api = Settings::GraphicsAPI::Vulkan;
-    } else {
-        Settings::values.graphics_api = Settings::GraphicsAPI::OpenGL;
-    }
+    Settings::values.graphics_api = Settings::GraphicsAPI::Software;
 
     Settings::values.use_hw_shader =
             LibRetro::FetchVariable("citra_use_hw_shaders", "enabled") == "enabled";
@@ -471,9 +460,7 @@ void UpdateSettings() {
     }
 
     if(!emu_instance->emu_window) {
-        emu_instance->emu_window = std::make_unique<EmuWindow_LibRetro>(
-            Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::OpenGL
-        );
+        emu_instance->emu_window = std::make_unique<EmuWindow_LibRetro>();
     }
 
     // Update the framebuffer sizing.
@@ -523,12 +510,7 @@ void retro_run() {
         screen_swap_btn_state = screen_swap_btn;
     }
 
-    if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::OpenGL) {
-        // We can't assume that the frontend has been nice and preserved all OpenGL settings. Reset.
-        auto last_state = OpenGL::OpenGLState::GetCurState();
-        ResetGLState();
-        last_state.Apply();
-    }
+
 
     while (!emu_instance->emu_window->HasSubmittedFrame()) {
         auto result = Core::System::GetInstance().RunLoop();
@@ -551,58 +533,12 @@ void retro_run() {
     }
 }
 
-void* load_opengl_func(const char* name) {
-    return (void*)emu_instance->hw_render.get_proc_address(name);
-}
+
 
 void context_reset() {
     if (!Core::System::GetInstance().IsPoweredOn()) {
         LOG_CRITICAL(Frontend, "Cannot reset system core if isn't on!");
         return;
-    }
-
-#ifdef HAVE_LIBNX
-    rglgen_resolve_symbols_custom(&eglGetProcAddress, &rglgen_symbol_map_citra);
-#endif
-
-    switch (Settings::values.graphics_api.GetValue()) {
-    case Settings::GraphicsAPI::Vulkan:
-    {
-        static_cast<Vulkan::RendererVulkan*>(VideoCore::g_renderer.get())->CreateMainWindow();
-        break;
-    }
-    case Settings::GraphicsAPI::Software:
-        // Software renderer is initialized in VideoCore::Init
-        break;
-    case Settings::GraphicsAPI::OpenGL:
-    default:
-        // Recreate our renderer, so it can reset it's state.
-        if (VideoCore::g_renderer != nullptr) {
-            LOG_ERROR(Frontend,
-                    "Likely memory leak: context_destroy() was not called before context_reset()!");
-        }
-        // Check to see if the frontend provides us with OpenGL symbols
-        if (emu_instance->hw_render.get_proc_address != nullptr) {
-            bool loaded = Settings::values.use_gles
-                ? gladLoadGLES2Loader((GLADloadproc)load_opengl_func)
-                : gladLoadGLLoader((GLADloadproc)load_opengl_func);
-
-            if (!loaded) {
-                LOG_CRITICAL(Frontend, "Glad failed to load (frontend-provided symbols)!");
-                return;
-            }
-        } else {
-            // Else, try to load them on our own
-            if (!gladLoadGL()) {
-                LOG_CRITICAL(Frontend, "Glad failed to load (internal symbols)!");
-                return;
-            }
-        }
-        VideoCore::g_renderer = std::make_unique<OpenGL::RendererOpenGL>(Core::System::GetInstance(), *emu_instance->emu_window, nullptr);
-    }
-
-    if (Settings::values.use_disk_shader_cache) {
-        Core::System::GetInstance().Renderer().Rasterizer()->LoadDiskResources(false, nullptr);
     }
 
     emu_instance->emu_window->UpdateLayout();
@@ -622,39 +558,7 @@ void retro_reset() {
     context_reset(); // Force the renderer to appear
 }
 
-static bool vk_create_device(
-    struct retro_vulkan_context *context,
-    VkInstance instance,
-    VkPhysicalDevice gpu,
-    VkSurfaceKHR surface,
-    PFN_vkGetInstanceProcAddr get_instance_proc_addr,
-    const char **required_device_extensions,
-    unsigned num_required_device_extensions,
-    const char **required_device_layers,
-    unsigned num_required_device_layers,
-    const VkPhysicalDeviceFeatures *required_features)
-{
-    emu_instance->emu_window->vkSurface = surface;
 
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(get_instance_proc_addr);
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(instance);
-
-    VideoCore::g_renderer = std::make_unique<Vulkan::RendererVulkan>(
-        Core::System::GetInstance(),
-        *emu_instance->emu_window,
-        instance, gpu
-    );
-
-    Vulkan::Instance* vkInstance = static_cast<Vulkan::RendererVulkan*>(VideoCore::g_renderer.get())->GetInstance();
-    context->gpu = vkInstance->GetPhysicalDevice();
-    context->device = vkInstance->GetDevice();
-    context->queue = vkInstance->GetGraphicsQueue();
-    context->queue_family_index = vkInstance->GetGraphicsQueueFamilyIndex();
-    context->presentation_queue = context->queue;
-    context->presentation_queue_family_index = context->queue_family_index;
-
-    return true;
-}
 /*
 static void vk_destroy_device() {
     delete emu_instance->vk_instance;
@@ -676,56 +580,8 @@ bool retro_load_game(const struct retro_game_info* info) {
             LibRetro::DisplayMessage("XRGB8888 is not supported.");
             return false;
         }
-        const auto graphics_api = Settings::values.graphics_api.GetValue();
-        if (graphics_api == Settings::GraphicsAPI::Software) {
-            LOG_INFO(Frontend, "Using Software renderer");
-            emu_instance->hw_setup = true;
-        } else {
-            switch (graphics_api) {
-            case Settings::GraphicsAPI::Vulkan:
-                LOG_INFO(Frontend, "Using Vulkan hw renderer");
-                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_VULKAN;
-                emu_instance->hw_render.version_major = VK_API_VERSION_1_1;
-                emu_instance->hw_render.version_minor = 0;
-                break;
-            case Settings::GraphicsAPI::OpenGL:
-            default:
-                LOG_INFO(Frontend, "Using OpenGL hw renderer");
-#ifndef HAVE_LIBNX
-                LibRetro::SetHWSharedContext();
-#endif
-#if defined(HAVE_LIBNX)
-                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
-                emu_instance->hw_render.version_major = 0;
-                emu_instance->hw_render.version_minor = 0;
-
-                rglgen_resolve_symbols_custom(&eglGetProcAddress, &rglgen_symbol_map_citra);
-#elif defined(USING_GLES)
-                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
-                emu_instance->hw_render.version_major = 3;
-                emu_instance->hw_render.version_minor = 2;
-#else
-                emu_instance->hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
-                emu_instance->hw_render.version_major = 3;
-                emu_instance->hw_render.version_minor = 3;
-#endif
-            }
-            emu_instance->hw_render.context_reset = context_reset;
-            emu_instance->hw_render.context_destroy = context_destroy;
-            emu_instance->hw_render.cache_context = false;
-            emu_instance->hw_render.bottom_left_origin = true;
-            if (!LibRetro::SetHWRenderer(&emu_instance->hw_render)) {
-                LOG_CRITICAL(Frontend, "Failed to set HW renderer");
-                LibRetro::DisplayMessage("Failed to set HW renderer");
-                return false;
-            }
-
-            if (graphics_api == Settings::GraphicsAPI::Vulkan) {
-                LibRetro::SetVkDeviceCallbacks(vk_create_device, nullptr);
-            }
-
-            emu_instance->hw_setup = true;
-        }
+        LOG_INFO(Frontend, "Using Software renderer");
+        emu_instance->hw_setup = true;
     }
 
     const Core::System::ResultStatus load_result{Core::System::GetInstance().Load(

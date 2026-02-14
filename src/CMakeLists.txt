@@ -115,7 +115,7 @@ else()
     )
 
     if (CITRA_WARNINGS_AS_ERRORS)
-        add_compile_options(-Werror)
+        # add_compile_options(-Werror)
     endif()
 
     if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)

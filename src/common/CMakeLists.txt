@@ -15,26 +15,26 @@ add_custom_command(OUTPUT scm_rev.cpp
     DEPENDS
       # WARNING! It was too much work to try and make a common location for this list,
       # so if you need to change it, please update CMakeModules/GenerateSCMRev.cmake as well
-      "${VIDEO_CORE}/renderer_opengl/gl_shader_disk_cache.cpp"
-      "${VIDEO_CORE}/renderer_opengl/gl_shader_disk_cache.h"
-      "${VIDEO_CORE}/renderer_opengl/gl_shader_util.cpp"
-      "${VIDEO_CORE}/renderer_opengl/gl_shader_util.h"
-      "${VIDEO_CORE}/renderer_vulkan/vk_shader_util.cpp"
-      "${VIDEO_CORE}/renderer_vulkan/vk_shader_util.h"
-      "${VIDEO_CORE}/shader/generator/glsl_fs_shader_gen.cpp"
-      "${VIDEO_CORE}/shader/generator/glsl_fs_shader_gen.h"
-      "${VIDEO_CORE}/shader/generator/glsl_shader_decompiler.cpp"
-      "${VIDEO_CORE}/shader/generator/glsl_shader_decompiler.h"
-      "${VIDEO_CORE}/shader/generator/glsl_shader_gen.cpp"
-      "${VIDEO_CORE}/shader/generator/glsl_shader_gen.h"
-      "${VIDEO_CORE}/shader/generator/pica_fs_config.cpp"
-      "${VIDEO_CORE}/shader/generator/pica_fs_config.h"
-      "${VIDEO_CORE}/shader/generator/shader_gen.cpp"
-      "${VIDEO_CORE}/shader/generator/shader_gen.h"
-      "${VIDEO_CORE}/shader/generator/shader_uniforms.cpp"
-      "${VIDEO_CORE}/shader/generator/shader_uniforms.h"
-      "${VIDEO_CORE}/shader/generator/spv_fs_shader_gen.cpp"
-      "${VIDEO_CORE}/shader/generator/spv_fs_shader_gen.h"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       "${VIDEO_CORE}/shader/shader.cpp"
       "${VIDEO_CORE}/shader/shader.h"
       "${VIDEO_CORE}/pica.cpp"

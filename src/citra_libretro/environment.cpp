@@ -24,7 +24,7 @@ static retro_video_refresh_t video_cb;
 static retro_environment_t environ_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
-static const struct retro_hw_render_interface_vulkan *vulkan;
+
 
 } // namespace
 
@@ -32,22 +32,13 @@ void UploadVideoFrame(const void* data, unsigned width, unsigned height, size_t 
     return video_cb(data, width, height, pitch);
 }
 
-bool SetHWSharedContext() {
-    return environ_cb(RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT, NULL);
-}
+
 
 void PollInput() {
     return input_poll_cb();
 }
 
-Settings::GraphicsAPI GetPrefferedHWRenderer() {
-    retro_hw_context_type context_type = RETRO_HW_CONTEXT_OPENGL;
-    environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &context_type);
-    if (context_type == RETRO_HW_CONTEXT_VULKAN) {
-        return Settings::GraphicsAPI::Vulkan;
-    }
-    return Settings::GraphicsAPI::OpenGL;
-}
+Settings::GraphicsAPI GetPrefferedHWRenderer() { return Settings::GraphicsAPI::Software; }
 
 bool SetVariables(const retro_variable vars[]) {
     return environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
@@ -65,17 +56,7 @@ bool SetHWRenderer(retro_hw_render_callback* cb) {
     return environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, cb);
 }
 
-bool SetVkDeviceCallbacks(const retro_vulkan_create_device_t vk_create_device, const retro_vulkan_destroy_device_t vk_destroy_device) {
-    static const retro_hw_render_context_negotiation_interface_vulkan iface = {
-        RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
-        RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION,
 
-        nullptr,
-        vk_create_device,
-        vk_destroy_device,
-    };
-    return environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void*)&iface);
-}
 
 bool SetAudioCallback(retro_audio_callback* cb) {
     return environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, cb);
@@ -110,18 +91,7 @@ bool DisplayMessage(const char* sg) {
     return environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
 }
 
-const struct retro_hw_render_interface_vulkan* GetHWRenderInterfaceVulkan() {
-    if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void**)&vulkan) || !vulkan) {
-        return nullptr;
-    }
 
-    if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION) {
-        vulkan = nullptr;
-        return nullptr;
-    }
-
-    return vulkan;
-}
 
 std::string FetchVariable(std::string key, std::string def) {
     struct retro_variable var = {nullptr};

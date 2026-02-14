@@ -183,6 +183,7 @@ endif()
 # =======================================================================
 
 if (CITRA_FORCE_INTERPRETER)
+    add_definitions(-DCITRA_FORCE_INTERPRETER)
     add_definitions(-DBOOST_PREDEF_ARCHITECTURE_ARM_H=1)
     add_definitions(-DBOOST_PREDEF_ARCHITECTURE_X86_H=1)
     set(ARCHITECTURE "GENERIC" CACHE STRING "Target architecture" FORCE)
