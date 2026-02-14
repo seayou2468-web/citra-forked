@@ -31,6 +31,9 @@
 #endif
 
 namespace FileUtil {
+constexpr u32 MakeMagic(char a, char b, char c, char d) {
+    return a | b << 8 | c << 16 | d << 24;
+}
 
 // User paths for GetUserPath
 enum class UserPath {
@@ -275,20 +278,21 @@ enum class DirectorySeparator {
 class IOFile : public NonCopyable {
 public:
     IOFile();
+    virtual ~IOFile();
 
     // flags is used for windows specific file open mode flags, which
     // allows citra to open the logs in shared write mode, so that the file
     // isn't considered "locked" while citra is open and people can open the log file and view it
     IOFile(const std::string& filename, const char openmode[], int flags = 0);
 
-    ~IOFile();
+
 
     IOFile(IOFile&& other) noexcept;
     IOFile& operator=(IOFile&& other) noexcept;
 
     void Swap(IOFile& other) noexcept;
 
-    bool Close();
+    virtual bool Close();
 
     template <typename T>
     std::size_t ReadArray(T* data, std::size_t length) {
@@ -354,7 +358,7 @@ public:
         return WriteArray(str.data(), str.length());
     }
 
-    [[nodiscard]] bool IsOpen() const {
+    [[nodiscard]] virtual bool IsOpen() const {
         return nullptr != m_file;
     }
 
@@ -379,11 +383,11 @@ public:
         return IsGood();
     }
 
-    bool Seek(s64 off, int origin);
-    [[nodiscard]] u64 Tell() const;
-    [[nodiscard]] u64 GetSize() const;
-    bool Resize(u64 size);
-    bool Flush();
+    virtual bool Seek(s64 off, int origin);
+    [[nodiscard]] virtual u64 Tell() const;
+    [[nodiscard]] virtual u64 GetSize() const;
+    virtual bool Resize(u64 size);
+    virtual bool Flush();
 
     // clear error state
     void Clear() {
@@ -397,10 +401,10 @@ public:
     }
 
 private:
-    std::size_t ReadImpl(void* data, std::size_t length, std::size_t data_size);
+    virtual std::size_t ReadImpl(void* data, std::size_t length, std::size_t data_size);
     std::size_t ReadAtImpl(void* data, std::size_t length, std::size_t data_size,
                            std::size_t offset);
-    std::size_t WriteImpl(const void* data, std::size_t length, std::size_t data_size);
+    virtual std::size_t WriteImpl(const void* data, std::size_t length, std::size_t data_size);
 
     bool Open();
 
@@ -443,3 +447,28 @@ void OpenFStream(T& fstream, const std::string& filename, std::ios_base::openmod
     fstream.open(filename, openmode);
 #endif
 }
+
+namespace FileUtil {
+class Z3DSReadIOFile final : public IOFile {
+public:
+    explicit Z3DSReadIOFile(std::unique_ptr<IOFile> file);
+    ~Z3DSReadIOFile() override;
+
+    bool IsOpen() const override;
+    bool Seek(s64 off, int origin) override;
+    u64 Tell() const override;
+    u64 GetSize() const override;
+    bool Close() override;
+
+    static std::optional<u32> GetUnderlyingFileMagic(IOFile* file);
+
+protected:
+    std::size_t ReadImpl(void* data, std::size_t length, std::size_t data_size) override;
+    std::size_t WriteImpl(const void* data, std::size_t length, std::size_t data_size) override;
+
+private:
+    std::unique_ptr<IOFile> m_compressed_file;
+    std::vector<u8> m_decompressed_buffer;
+    u64 m_offset = 0;
+};
+} // namespace FileUtil

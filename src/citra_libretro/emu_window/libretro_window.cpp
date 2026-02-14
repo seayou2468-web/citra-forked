@@ -210,7 +210,7 @@ void EmuWindow_LibRetro::CopySoftwareFramebuffer() {
                 if (src_y >= src_h) src_y = src_h - 1;
 
                 const u8* src = &screen.pixels[(src_col_offset + src_y) * 4];
-                u32 color = (static_cast<u32>(src[3]) << 16) | (static_cast<u32>(src[2]) << 8) | static_cast<u32>(src[1]);
+                u32 color = (static_cast<u32>(src[0]) << 16) | (static_cast<u32>(src[1]) << 8) | static_cast<u32>(src[2]);
 
                 u32 di = (rect.top + y) * width + (rect.left + x);
                 software_framebuffer[di] = color;

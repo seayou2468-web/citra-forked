@@ -268,7 +268,7 @@ ResultStatus AppLoader_THREEDSX::Load(std::shared_ptr<Kernel::Process>& process)
         return ResultStatus::Error;
 
     std::shared_ptr<CodeSet> codeset;
-    if (Load3DSXFile(file, Memory::PROCESS_IMAGE_VADDR, &codeset) != ERROR_NONE)
+    if (Load3DSXFile(*file, Memory::PROCESS_IMAGE_VADDR, &codeset) != ERROR_NONE)
         return ResultStatus::Error;
     codeset->name = filename;
 

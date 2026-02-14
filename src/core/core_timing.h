@@ -171,13 +171,13 @@ public:
         BOOST_SERIALIZATION_SPLIT_MEMBER()
     };
 
-    // currently Service::HID::pad_update_ticks is the smallest interval for an event that gets
+    // 4000 ticks slice for Libretro is the smallest interval for an event that gets
     // always scheduled. Therfore we use this as orientation for the MAX_SLICE_LENGTH
     // For performance bigger slice length are desired, though this will lead to cores desync
     // But we never want to schedule events into the current slice, because then cores might to
     // run small slices to sync up again. This is especially important for events that are always
     // scheduled and repated.
-    static constexpr int MAX_SLICE_LENGTH = BASE_CLOCK_RATE_ARM11 / 234;
+    static constexpr int MAX_SLICE_LENGTH = 4000;
 
     class Timer {
     public:

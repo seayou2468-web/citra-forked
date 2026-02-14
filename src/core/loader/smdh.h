@@ -12,17 +12,18 @@
 #include "common/swap.h"
 
 namespace Loader {
+bool IsValidSMDH(std::span<const u8> smdh_data);
 
 /**
  * Tests if data is a valid SMDH by its length and magic number.
  * @param smdh_data data buffer to test
  * @return bool test result
  */
-bool IsValidSMDH(std::span<const u8> smdh_data);
 
 /// SMDH data structure that contains titles, icons etc. See https://www.3dbrew.org/wiki/SMDH
 struct SMDH {
     u32_le magic;
+    bool IsValid() const;
     u16_le version;
     INSERT_PADDING_BYTES(2);
 
