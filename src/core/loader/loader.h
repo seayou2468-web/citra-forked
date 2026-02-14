@@ -15,6 +15,10 @@
 #include "core/file_sys/romfs_reader.h"
 #include "core/hle/kernel/kernel.h"
 
+namespace Core {
+class System;
+}
+
 namespace Kernel {
 struct AddressMapping;
 class Process;
@@ -59,7 +63,7 @@ FileType GuessFromExtension(const std::string& extension);
 /**
  * Convert a FileType into a string which can be displayed to the user.
  */
-const char* GetFileTypeString(FileType type);
+const char* GetFileTypeString(FileType type, bool is_compressed = false);
 
 /// Return type for functions in Loader namespace
 enum class ResultStatus {
@@ -82,7 +86,7 @@ constexpr u32 MakeMagic(char a, char b, char c, char d) {
 /// Interface for loading an application
 class AppLoader : NonCopyable {
 public:
-    explicit AppLoader(FileUtil::IOFile&& file) : file(std::move(file)) {}
+    explicit AppLoader(Core::System& system, std::unique_ptr<FileUtil::IOFile> file) : system(system), file(std::move(file)) {}
     virtual ~AppLoader() {}
 
     /**
@@ -253,7 +257,8 @@ public:
     }
 
 protected:
-    FileUtil::IOFile file;
+    Core::System& system;
+    std::unique_ptr<FileUtil::IOFile> file;
     bool is_loaded = false;
 };
 

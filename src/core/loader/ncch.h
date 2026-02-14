@@ -15,8 +15,8 @@ namespace Loader {
 /// Loads an NCCH file (e.g. from a CCI, or the first NCCH in a CXI)
 class AppLoader_NCCH final : public AppLoader {
 public:
-    AppLoader_NCCH(FileUtil::IOFile&& file, const std::string& filepath, u32 offset = 0)
-        : AppLoader(std::move(file)), base_ncch(filepath, offset), overlay_ncch(&base_ncch),
+    AppLoader_NCCH(Core::System& system, std::unique_ptr<FileUtil::IOFile> file, const std::string& filepath, u32 offset = 0)
+        : AppLoader(system, std::move(file)), base_ncch(filepath, offset), overlay_ncch(&base_ncch),
           filepath(filepath) {}
 
     /**
@@ -24,10 +24,10 @@ public:
      * @param file FileUtil::IOFile open file
      * @return FileType found, or FileType::Error if this loader doesn't know it
      */
-    static FileType IdentifyType(FileUtil::IOFile& file);
+    static FileType IdentifyType(FileUtil::IOFile* file);
 
     FileType GetFileType() override {
-        return IdentifyType(file);
+        return IdentifyType(file.get());
     }
 
     [[nodiscard]] std::span<const u32> GetPreferredRegions() const override {

@@ -1,3 +1,4 @@
+#include "common/zstd_compression.h"
 // Copyright 2013 Dolphin Emulator Project / 2014 Citra Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
@@ -1300,5 +1301,86 @@ void OpenFStream<std::ios_base::out>(
         return;
     boost::iostreams::file_descriptor_sink file_descriptor_sink(fd, boost::iostreams::close_handle);
     fstream.open(file_descriptor_sink);
+}
+
+Z3DSReadIOFile::Z3DSReadIOFile(std::unique_ptr<IOFile> file) : m_compressed_file(std::move(file)) {
+    if (m_compressed_file && m_compressed_file->IsOpen()) {
+        u32 magic;
+        m_compressed_file->Seek(0, SEEK_SET);
+        if (m_compressed_file->ReadBytes(&magic, 4) == 4 && magic == FileUtil::MakeMagic('Z', '3', 'D', 'S')) {
+            m_compressed_file->Seek(16, SEEK_SET);
+            std::vector<u8> compressed_data(m_compressed_file->GetSize() - 16);
+            m_compressed_file->ReadBytes(compressed_data.data(), compressed_data.size());
+            m_decompressed_buffer = Common::Compression::DecompressDataZSTD(compressed_data);
+        } else {
+            m_compressed_file->Seek(0, SEEK_SET);
+            std::vector<u8> compressed_data(m_compressed_file->GetSize());
+            m_compressed_file->ReadBytes(compressed_data.data(), compressed_data.size());
+            m_decompressed_buffer = Common::Compression::DecompressDataZSTD(compressed_data);
+        }
+    }
+    m_offset = 0;
+}
+
+Z3DSReadIOFile::~Z3DSReadIOFile() = default;
+
+bool Z3DSReadIOFile::IsOpen() const {
+    return !m_decompressed_buffer.empty();
+}
+
+bool Z3DSReadIOFile::Seek(s64 off, int origin) {
+    switch (origin) {
+    case SEEK_SET:
+        m_offset = off;
+        break;
+    case SEEK_CUR:
+        m_offset += off;
+        break;
+    case SEEK_END:
+        m_offset = m_decompressed_buffer.size() + off;
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+u64 Z3DSReadIOFile::Tell() const {
+    return m_offset;
+}
+
+u64 Z3DSReadIOFile::GetSize() const {
+    return m_decompressed_buffer.size();
+}
+
+bool Z3DSReadIOFile::Close() {
+    m_decompressed_buffer.clear();
+    return true;
+}
+
+std::size_t Z3DSReadIOFile::ReadImpl(void* data, std::size_t length, std::size_t data_size) {
+    if (m_offset >= m_decompressed_buffer.size()) return 0;
+    std::size_t to_read = std::min(length * data_size, m_decompressed_buffer.size() - (std::size_t)m_offset);
+    std::memcpy(data, m_decompressed_buffer.data() + m_offset, to_read);
+    m_offset += to_read;
+    return to_read / data_size;
+}
+
+std::size_t Z3DSReadIOFile::WriteImpl(const void* data, std::size_t length, std::size_t data_size) {
+    return 0; // Read-only
+}
+
+std::optional<u32> Z3DSReadIOFile::GetUnderlyingFileMagic(IOFile* file) {
+    if (!file || !file->IsOpen()) return std::nullopt;
+    u64 pos = file->Tell();
+    u32 magic;
+    file->Seek(0, SEEK_SET);
+    if (file->ReadBytes(&magic, 4) == 4 && magic == FileUtil::MakeMagic('Z', '3', 'D', 'S')) {
+        file->ReadBytes(&magic, 4);
+        file->Seek(pos, SEEK_SET);
+        return magic;
+    }
+    file->Seek(pos, SEEK_SET);
+    return std::nullopt;
 }
 } // namespace FileUtil

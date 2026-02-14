@@ -515,15 +515,17 @@ void retro_run() {
 
         // Execute until a frame is submitted or a timeout occurs.
     auto start_time = std::chrono::steady_clock::now();
-    while (!emu_instance->emu_window->HasSubmittedFrame()) {
+    for (unsigned i = 0; i < 4000; i++) {
         auto result = Core::System::GetInstance().RunLoop(true);
         if (__builtin_expect(result != Core::System::ResultStatus::Success, 0)) {
             break;
         }
-
+        if (emu_instance->emu_window->HasSubmittedFrame()) {
+            break;
+        }
         auto current_time = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
-        if (elapsed > 33) break; // Limit to ~33ms per call to maintain responsiveness
+        if (elapsed > 16) break; // Return after 16ms to keep frontend responsive
     }
     // We don't reset HasSubmittedFrame here, it's done in the next call if needed,
     // or handled by the emu_window.

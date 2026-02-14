@@ -14,19 +14,19 @@ namespace Loader {
 /// Loads an 3DSX file
 class AppLoader_THREEDSX final : public AppLoader {
 public:
-    AppLoader_THREEDSX(FileUtil::IOFile&& file, const std::string& filename,
+    AppLoader_THREEDSX(Core::System& system, std::unique_ptr<FileUtil::IOFile> file, const std::string& filename,
                        const std::string& filepath)
-        : AppLoader(std::move(file)), filename(std::move(filename)), filepath(filepath) {}
+        : AppLoader(system, std::move(file)), filename(std::move(filename)), filepath(filepath) {}
 
     /**
      * Returns the type of the file
      * @param file FileUtil::IOFile open file
      * @return FileType found, or FileType::Error if this loader doesn't know it
      */
-    static FileType IdentifyType(FileUtil::IOFile& file);
+    static FileType IdentifyType(FileUtil::IOFile* file);
 
     FileType GetFileType() override {
-        return IdentifyType(file);
+        return IdentifyType(file.get());
     }
 
     ResultStatus Load(std::shared_ptr<Kernel::Process>& process) override;

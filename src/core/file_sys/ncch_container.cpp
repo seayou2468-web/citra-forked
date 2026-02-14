@@ -112,7 +112,14 @@ static bool LZSS_Decompress(std::span<const u8> compressed, std::span<u8> decomp
 
 NCCHContainer::NCCHContainer(const std::string& filepath, u32 ncch_offset, u32 partition)
     : ncch_offset(ncch_offset), partition(partition), filepath(filepath) {
-    file = FileUtil::IOFile(filepath, "rb");
+    file = std::make_unique<FileUtil::IOFile>(filepath, "rb");
+    if (file && file->IsOpen()) {
+        u32 magic;
+        file->Seek(0, SEEK_SET);
+        if (file->ReadBytes(&magic, 4) == 4 && magic == FileUtil::MakeMagic('Z', '3', 'D', 'S')) {
+            file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(file));
+        }
+    }
 }
 
 Loader::ResultStatus NCCHContainer::OpenFile(const std::string& filepath_, u32 ncch_offset_,
@@ -120,13 +127,18 @@ Loader::ResultStatus NCCHContainer::OpenFile(const std::string& filepath_, u32 n
     filepath = filepath_;
     ncch_offset = ncch_offset_;
     partition = partition_;
-    file = FileUtil::IOFile(filepath_, "rb");
+    file = std::make_unique<FileUtil::IOFile>(filepath_, "rb");
 
-    if (!file.IsOpen()) {
+    if (!file || !file->IsOpen()) {
         LOG_WARNING(Service_FS, "Failed to open {}", filepath);
         return Loader::ResultStatus::Error;
     }
 
+    u32 magic;
+    file->Seek(0, SEEK_SET);
+    if (file->ReadBytes(&magic, 4) == 4 && magic == FileUtil::MakeMagic('Z', '3', 'D', 'S')) {
+        file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(file));
+    }
     LOG_DEBUG(Service_FS, "Opened {}", filepath);
     return Loader::ResultStatus::Success;
 }
@@ -135,28 +147,28 @@ Loader::ResultStatus NCCHContainer::LoadHeader() {
     if (has_header) {
         return Loader::ResultStatus::Success;
     }
-    if (!file.IsOpen()) {
+    if (!file->IsOpen()) {
         return Loader::ResultStatus::Error;
     }
 
     // Reset read pointer in case this file has been read before.
-    file.Seek(ncch_offset, SEEK_SET);
+    file->Seek(ncch_offset, SEEK_SET);
 
-    if (file.ReadBytes(&ncch_header, sizeof(NCCH_Header)) != sizeof(NCCH_Header)) {
+    if (file->ReadBytes(&ncch_header, sizeof(NCCH_Header)) != sizeof(NCCH_Header)) {
         return Loader::ResultStatus::Error;
     }
 
     // Skip NCSD header and load first NCCH (NCSD is just a container of NCCH files)...
     if (Loader::MakeMagic('N', 'C', 'S', 'D') == ncch_header.magic) {
         NCSD_Header ncsd_header;
-        file.Seek(ncch_offset, SEEK_SET);
-        file.ReadBytes(&ncsd_header, sizeof(NCSD_Header));
+        file->Seek(ncch_offset, SEEK_SET);
+        file->ReadBytes(&ncsd_header, sizeof(NCSD_Header));
         ASSERT(Loader::MakeMagic('N', 'C', 'S', 'D') == ncsd_header.magic);
         ASSERT(partition < 8);
         ncch_offset = ncch_offset + ncsd_header.partitions[partition].offset * kBlockSize;
         LOG_ERROR(Service_FS, "{}", ncch_offset);
-        file.Seek(ncch_offset, SEEK_SET);
-        file.ReadBytes(&ncch_header, sizeof(NCCH_Header));
+        file->Seek(ncch_offset, SEEK_SET);
+        file->ReadBytes(&ncch_header, sizeof(NCCH_Header));
     }
 
     // Verify we are loading the correct file type...
@@ -172,23 +184,23 @@ Loader::ResultStatus NCCHContainer::Load() {
     if (is_loaded)
         return Loader::ResultStatus::Success;
 
-    if (file.IsOpen()) {
+    if (file->IsOpen()) {
         // Reset read pointer in case this file has been read before.
-        file.Seek(ncch_offset, SEEK_SET);
+        file->Seek(ncch_offset, SEEK_SET);
 
-        if (file.ReadBytes(&ncch_header, sizeof(NCCH_Header)) != sizeof(NCCH_Header))
+        if (file->ReadBytes(&ncch_header, sizeof(NCCH_Header)) != sizeof(NCCH_Header))
             return Loader::ResultStatus::Error;
 
         // Skip NCSD header and load first NCCH (NCSD is just a container of NCCH files)...
         if (Loader::MakeMagic('N', 'C', 'S', 'D') == ncch_header.magic) {
             NCSD_Header ncsd_header;
-            file.Seek(ncch_offset, SEEK_SET);
-            file.ReadBytes(&ncsd_header, sizeof(NCSD_Header));
+            file->Seek(ncch_offset, SEEK_SET);
+            file->ReadBytes(&ncsd_header, sizeof(NCSD_Header));
             ASSERT(Loader::MakeMagic('N', 'C', 'S', 'D') == ncsd_header.magic);
             ASSERT(partition < 8);
             ncch_offset = ncch_offset + ncsd_header.partitions[partition].offset * kBlockSize;
-            file.Seek(ncch_offset, SEEK_SET);
-            file.ReadBytes(&ncch_header, sizeof(NCCH_Header));
+            file->Seek(ncch_offset, SEEK_SET);
+            file->ReadBytes(&ncch_header, sizeof(NCCH_Header));
         }
 
         // Verify we are loading the correct file type...
@@ -328,7 +340,7 @@ Loader::ResultStatus NCCHContainer::Load() {
         if (ncch_header.extended_header_size) {
             auto read_exheader = [this](FileUtil::IOFile& file) {
                 const std::size_t size = sizeof(exheader_header);
-                return file && file.ReadBytes(&exheader_header, size) == size;
+                return file && file->ReadBytes(&exheader_header, size) == size;
             };
 
             if (!read_exheader(file)) {
@@ -415,8 +427,8 @@ Loader::ResultStatus NCCHContainer::Load() {
             LOG_DEBUG(Service_FS, "ExeFS offset:                0x{:08X}", exefs_offset);
             LOG_DEBUG(Service_FS, "ExeFS size:                  0x{:08X}", exefs_size);
 
-            file.Seek(exefs_offset + ncch_offset, SEEK_SET);
-            if (file.ReadBytes(&exefs_header, sizeof(ExeFs_Header)) != sizeof(ExeFs_Header))
+            file->Seek(exefs_offset + ncch_offset, SEEK_SET);
+            if (file->ReadBytes(&exefs_header, sizeof(ExeFs_Header)) != sizeof(ExeFs_Header))
                 return Loader::ResultStatus::Error;
 
             if (is_encrypted) {
@@ -426,7 +438,7 @@ Loader::ResultStatus NCCHContainer::Load() {
                     .ProcessData(data, data, sizeof(exefs_header));
             }
 
-            exefs_file = FileUtil::IOFile(filepath, "rb");
+            exefs_file = std::make_unique<FileUtil::IOFile>(filepath, "rb");
             has_exefs = true;
         }
 
@@ -455,15 +467,15 @@ Loader::ResultStatus NCCHContainer::LoadOverrides() {
     std::string exefs_override = filepath + ".exefs";
     std::string exefsdir_override = filepath + ".exefsdir/";
     if (FileUtil::Exists(exefs_override)) {
-        exefs_file = FileUtil::IOFile(exefs_override, "rb");
+        exefs_file = std::make_unique<FileUtil::IOFile>(exefs_override, "rb");
 
-        if (exefs_file.ReadBytes(&exefs_header, sizeof(ExeFs_Header)) == sizeof(ExeFs_Header)) {
+        if (exefs_file->ReadBytes(&exefs_header, sizeof(ExeFs_Header)) == sizeof(ExeFs_Header)) {
             LOG_DEBUG(Service_FS, "Loading ExeFS section from {}", exefs_override);
             exefs_offset = 0;
             is_tainted = true;
             has_exefs = true;
         } else {
-            exefs_file = FileUtil::IOFile(filepath, "rb");
+            exefs_file = std::make_unique<FileUtil::IOFile>(filepath, "rb");
         }
     } else if (FileUtil::Exists(exefsdir_override) && FileUtil::IsDirectory(exefsdir_override)) {
         is_tainted = true;
@@ -495,9 +507,9 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
             std::size_t logo_size = ncch_header.logo_region_size * kBlockSize;
 
             buffer.resize(logo_size);
-            file.Seek(ncch_offset + logo_offset, SEEK_SET);
+            file->Seek(ncch_offset + logo_offset, SEEK_SET);
 
-            if (file.ReadBytes(buffer.data(), logo_size) != logo_size) {
+            if (file->ReadBytes(buffer.data(), logo_size) != logo_size) {
                 LOG_ERROR(Service_FS, "Could not read NCCH logo");
                 return Loader::ResultStatus::Error;
             }
@@ -508,7 +520,7 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
     }
 
     // If we don't have any separate files, we'll need a full ExeFS
-    if (!exefs_file.IsOpen())
+    if (!exefs_file->IsOpen())
         return Loader::ResultStatus::Error;
 
     LOG_DEBUG(Service_FS, "{} sections:", kMaxSections);
@@ -523,7 +535,7 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
 
             s64 section_offset =
                 (section.offset + exefs_offset + sizeof(ExeFs_Header) + ncch_offset);
-            exefs_file.Seek(section_offset, SEEK_SET);
+            exefs_file->Seek(section_offset, SEEK_SET);
 
             std::array<u8, 16> key;
             if (strcmp(section.name, "icon") == 0 || strcmp(section.name, "banner") == 0) {
@@ -539,7 +551,7 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
             if (strcmp(section.name, ".code") == 0 && is_compressed) {
                 // Section is compressed, read compressed .code section...
                 std::vector<u8> temp_buffer(section.size);
-                if (exefs_file.ReadBytes(temp_buffer.data(), temp_buffer.size()) !=
+                if (exefs_file->ReadBytes(temp_buffer.data(), temp_buffer.size()) !=
                     temp_buffer.size())
                     return Loader::ResultStatus::Error;
 
@@ -555,7 +567,7 @@ Loader::ResultStatus NCCHContainer::LoadSectionExeFS(const char* name, std::vect
             } else {
                 // Section is uncompressed...
                 buffer.resize(section.size);
-                if (exefs_file.ReadBytes(buffer.data(), section.size) != section.size)
+                if (exefs_file->ReadBytes(buffer.data(), section.size) != section.size)
                     return Loader::ResultStatus::Error;
                 if (is_encrypted) {
                     dec.ProcessData(buffer.data(), buffer.data(), section.size);
@@ -591,8 +603,8 @@ Loader::ResultStatus NCCHContainer::ApplyCodePatch(std::vector<u8>& code) const 
         if (!patch_file)
             continue;
 
-        std::vector<u8> patch(patch_file.GetSize());
-        if (patch_file.ReadBytes(patch.data(), patch.size()) != patch.size())
+        std::vector<u8> patch(patch_file->GetSize());
+        if (patch_file->ReadBytes(patch.data(), patch.size()) != patch.size())
             return Loader::ResultStatus::Error;
 
         LOG_INFO(Service_FS, "File {} patching code.bin", info.path);
@@ -632,12 +644,12 @@ Loader::ResultStatus NCCHContainer::LoadOverrideExeFSSection(const char* name,
     for (const auto& path : override_paths) {
         FileUtil::IOFile section_file(path, "rb");
 
-        if (section_file.IsOpen()) {
-            auto section_size = section_file.GetSize();
+        if (section_file->IsOpen()) {
+            auto section_size = section_file->GetSize();
             buffer.resize(section_size);
 
-            section_file.Seek(0, SEEK_SET);
-            if (section_file.ReadBytes(buffer.data(), section_size) == section_size) {
+            section_file->Seek(0, SEEK_SET);
+            if (section_file->ReadBytes(buffer.data(), section_size) == section_size) {
                 LOG_WARNING(Service_FS, "File {} overriding built-in ExeFS file", path);
                 return Loader::ResultStatus::Success;
             }
@@ -660,7 +672,7 @@ Loader::ResultStatus NCCHContainer::ReadRomFS(std::shared_ptr<RomFSReader>& romf
         return Loader::ResultStatus::ErrorNotUsed;
     }
 
-    if (!file.IsOpen())
+    if (!file->IsOpen())
         return Loader::ResultStatus::Error;
 
     u32 romfs_offset = ncch_offset + (ncch_header.romfs_offset * kBlockSize) + 0x1000;
@@ -669,7 +681,7 @@ Loader::ResultStatus NCCHContainer::ReadRomFS(std::shared_ptr<RomFSReader>& romf
     LOG_DEBUG(Service_FS, "RomFS offset:           0x{:08X}", romfs_offset);
     LOG_DEBUG(Service_FS, "RomFS size:             0x{:08X}", romfs_size);
 
-    if (file.GetSize() < romfs_offset + romfs_size)
+    if (file->GetSize() < romfs_offset + romfs_size)
         return Loader::ResultStatus::Error;
 
     // We reopen the file, to allow its position to be independent from file's
