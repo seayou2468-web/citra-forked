@@ -96,14 +96,14 @@ using Kernel::CodeSet;
 
 static THREEDSX_Error Load3DSXFile(FileUtil::IOFile& file, u32 base_addr,
                                    std::shared_ptr<CodeSet>* out_codeset) {
-    if (!file->IsOpen())
+    if (!file.IsOpen())
         return ERROR_FILE;
 
     // Reset read pointer in case this file has been read before.
-    file->Seek(0, SEEK_SET);
+    file.Seek(0, SEEK_SET);
 
     THREEDSX_Header hdr;
-    if (file->ReadBytes(&hdr, sizeof(hdr)) != sizeof(hdr))
+    if (file.ReadBytes(&hdr, sizeof(hdr)) != sizeof(hdr))
         return ERROR_READ;
 
     THREEloadinfo loadinfo;
@@ -129,22 +129,22 @@ static THREEDSX_Error Load3DSXFile(FileUtil::IOFile& file, u32 base_addr,
     loadinfo.seg_ptrs[2] = loadinfo.seg_ptrs[1] + loadinfo.seg_sizes[1];
 
     // Skip header for future compatibility
-    file->Seek(hdr.header_size, SEEK_SET);
+    file.Seek(hdr.header_size, SEEK_SET);
 
     // Read the relocation headers
     std::vector<u32> relocs(n_reloc_tables * NUM_SEGMENTS);
     for (unsigned int current_segment = 0; current_segment < NUM_SEGMENTS; ++current_segment) {
         std::size_t size = n_reloc_tables * sizeof(u32);
-        if (file->ReadBytes(&relocs[current_segment * n_reloc_tables], size) != size)
+        if (file.ReadBytes(&relocs[current_segment * n_reloc_tables], size) != size)
             return ERROR_READ;
     }
 
     // Read the segments
-    if (file->ReadBytes(loadinfo.seg_ptrs[0], hdr.code_seg_size) != hdr.code_seg_size)
+    if (file.ReadBytes(loadinfo.seg_ptrs[0], hdr.code_seg_size) != hdr.code_seg_size)
         return ERROR_READ;
-    if (file->ReadBytes(loadinfo.seg_ptrs[1], hdr.rodata_seg_size) != hdr.rodata_seg_size)
+    if (file.ReadBytes(loadinfo.seg_ptrs[1], hdr.rodata_seg_size) != hdr.rodata_seg_size)
         return ERROR_READ;
-    if (file->ReadBytes(loadinfo.seg_ptrs[2], hdr.data_seg_size - hdr.bss_size) !=
+    if (file.ReadBytes(loadinfo.seg_ptrs[2], hdr.data_seg_size - hdr.bss_size) !=
         hdr.data_seg_size - hdr.bss_size)
         return ERROR_READ;
 
@@ -158,7 +158,7 @@ static THREEDSX_Error Load3DSXFile(FileUtil::IOFile& file, u32 base_addr,
             u32 n_relocs = relocs[current_segment * n_reloc_tables + current_segment_reloc_table];
             if (current_segment_reloc_table >= 2) {
                 // We are not using this table - ignore it because we don't know what it dose
-                file->Seek(n_relocs * sizeof(THREEDSX_Reloc), SEEK_CUR);
+                file.Seek(n_relocs * sizeof(THREEDSX_Reloc), SEEK_CUR);
                 continue;
             }
             THREEDSX_Reloc reloc_table[RELOCBUFSIZE];
@@ -170,7 +170,7 @@ static THREEDSX_Error Load3DSXFile(FileUtil::IOFile& file, u32 base_addr,
                 u32 remaining = std::min(RELOCBUFSIZE, n_relocs);
                 n_relocs -= remaining;
 
-                if (file->ReadBytes(reloc_table, remaining * sizeof(THREEDSX_Reloc)) !=
+                if (file.ReadBytes(reloc_table, remaining * sizeof(THREEDSX_Reloc)) !=
                     remaining * sizeof(THREEDSX_Reloc))
                     return ERROR_READ;
 
