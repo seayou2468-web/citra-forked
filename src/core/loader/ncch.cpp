@@ -317,7 +317,6 @@ ResultStatus AppLoader_NCCH::IsExecutable(bool& out_executable) {
     out_executable = overlay_ncch->ncch_header.is_executable != 0;
     return ResultStatus::Success;
 }
-}
 
 ResultStatus AppLoader_NCCH::ReadCode(std::vector<u8>& buffer) {
     return overlay_ncch->LoadSectionExeFS(".code", buffer);

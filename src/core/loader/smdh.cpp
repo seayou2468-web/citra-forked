@@ -23,16 +23,6 @@ bool IsValidSMDH(std::span<const u8> smdh_data) {
 }
 
 
-bool IsValidSMDH(std::span<const u8> smdh_data) {
-    if (smdh_data.size() < sizeof(Loader::SMDH)) {
-        return false;
-    }
-
-    u32 magic;
-    std::memcpy(&magic, smdh_data.data(), sizeof(u32));
-
-    return Loader::MakeMagic('S', 'M', 'D', 'H') == magic;
-}
 
 std::vector<u16> SMDH::GetIcon(bool large) const {
     u32 size;
