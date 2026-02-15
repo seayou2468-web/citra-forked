@@ -199,6 +199,8 @@ Settings::TextureSampling GetTextureSampling(std::string name) {
  * Updates Citra's settings with Libretro's.
  */
 void UpdateSettings() {
+    Settings::values.enable_telemetry = false;
+    Settings::values.log_filter = "*:Info";
     struct retro_input_descriptor desc[] = {
         {0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT, "Left"},
         {0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP, "Up"},
@@ -534,10 +536,7 @@ void retro_run() {
     // We don't reset HasSubmittedFrame here, it's done in the next call if needed,
     // or handled by the emu_window.
 
-
-    if (load_result == Core::System::ResultStatus::Success && emu_instance->emu_window) {
-        emu_instance->emu_window->UpdateLayout();
-    }
+}
 void context_reset() {
     if (!Core::System::GetInstance().IsPoweredOn()) {
         LOG_CRITICAL(Frontend, "Cannot reset system core if isn't on!");
@@ -592,7 +591,6 @@ bool retro_load_game(const struct retro_game_info* info) {
 
     if (load_result == Core::System::ResultStatus::Success && emu_instance->emu_window) {
         emu_instance->emu_window->UpdateLayout();
-        emu_instance->emu_window->SwapBuffers();
     }
 
     switch (load_result) {

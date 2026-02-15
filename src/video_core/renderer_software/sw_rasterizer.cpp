@@ -336,90 +336,41 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
                     continue;
                 }
 
-                const auto baricentric_coordinates = Common::MakeVec(
-                    f24::FromFloat32(static_cast<f32>(w0)), f24::FromFloat32(static_cast<f32>(w1)),
-                    f24::FromFloat32(static_cast<f32>(w2)));
-                const f24 interpolated_w_inverse =
-                    f24::One() / Common::Dot(w_inverse, baricentric_coordinates);
+                                const float fw0 = static_cast<float>(w0);
+                const float fw1 = static_cast<float>(w1);
+                const float fw2 = static_cast<float>(w2);
 
-                // interpolated_z = z / w
-                const float interpolated_z_over_w =
-                    (v0.screenpos[2].ToFloat32() * w0 + v1.screenpos[2].ToFloat32() * w1 +
-                     v2.screenpos[2].ToFloat32() * w2) /
-                    wsum;
+                const float interp_w_inv = 1.0f / (v0.pos.w.ToFloat32() * fw0 + v1.pos.w.ToFloat32() * fw1 + v2.pos.w.ToFloat32() * fw2);
 
-                // Not fully accurate. About 3 bits in precision are missing.
-                // Z-Buffer (z / w * scale + offset)
-                const float depth_scale =
-                    f24::FromRaw(regs.rasterizer.viewport_depth_range).ToFloat32();
-                const float depth_offset =
-                    f24::FromRaw(regs.rasterizer.viewport_depth_near_plane).ToFloat32();
-                float depth = interpolated_z_over_w * depth_scale + depth_offset;
-
-                // Potentially switch to W-Buffer
-                if (regs.rasterizer.depthmap_enable ==
-                    Pica::RasterizerRegs::DepthBuffering::WBuffering) {
-                    // W-Buffer (z * scale + w * offset = (z / w * scale + offset) * w)
-                    depth *= interpolated_w_inverse.ToFloat32() * wsum;
-                }
-
-                // Clamp the result
-                depth = std::clamp(depth, 0.0f, 1.0f);
-
-                /**
-                 * Perspective correct attribute interpolation:
-                 * Attribute values cannot be calculated by simple linear interpolation since
-                 * they are not linear in screen space. For example, when interpolating a
-                 * texture coordinate across two vertices, something simple like
-                 *     u = (u0*w0 + u1*w1)/(w0+w1)
-                 * will not work. However, the attribute value divided by the
-                 * clipspace w-coordinate (u/w) and and the inverse w-coordinate (1/w) are linear
-                 * in screenspace. Hence, we can linearly interpolate these two independently and
-                 * calculate the interpolated attribute by dividing the results.
-                 * I.e.
-                 *     u_over_w   = ((u0/v0.pos.w)*w0 + (u1/v1.pos.w)*w1)/(w0+w1)
-                 *     one_over_w = (( 1/v0.pos.w)*w0 + ( 1/v1.pos.w)*w1)/(w0+w1)
-                 *     u = u_over_w / one_over_w
-                 *
-                 * The generalization to three vertices is straightforward in baricentric
-                 *coordinates.
-                 **/
-                const auto get_interpolated_attribute = [&](f24 attr0, f24 attr1, f24 attr2) {
-                    auto attr_over_w = Common::MakeVec(attr0, attr1, attr2);
-                    f24 interpolated_attr_over_w =
-                        Common::Dot(attr_over_w, baricentric_coordinates);
-                    return interpolated_attr_over_w * interpolated_w_inverse;
+                auto get_interpolated_attribute_fast = [&](float a0, float a1, float a2) {
+                    return (a0 * fw0 + a1 * fw1 + a2 * fw2) * interp_w_inv;
                 };
 
                 const Common::Vec4<u8> primary_color{
                     static_cast<u8>(
-                        round(get_interpolated_attribute(v0.color.r(), v1.color.r(), v2.color.r())
-                                  .ToFloat32() *
+                        round(get_interpolated_attribute_fast(v0.color.r().ToFloat32(), v1.color.r().ToFloat32(), v2.color.r().ToFloat32()) *
                               255)),
                     static_cast<u8>(
-                        round(get_interpolated_attribute(v0.color.g(), v1.color.g(), v2.color.g())
-                                  .ToFloat32() *
+                        round(get_interpolated_attribute_fast(v0.color.g().ToFloat32(), v1.color.g().ToFloat32(), v2.color.g().ToFloat32()) *
                               255)),
                     static_cast<u8>(
-                        round(get_interpolated_attribute(v0.color.b(), v1.color.b(), v2.color.b())
-                                  .ToFloat32() *
+                        round(get_interpolated_attribute_fast(v0.color.b().ToFloat32(), v1.color.b().ToFloat32(), v2.color.b().ToFloat32()) *
                               255)),
                     static_cast<u8>(
-                        round(get_interpolated_attribute(v0.color.a(), v1.color.a(), v2.color.a())
-                                  .ToFloat32() *
+                        round(get_interpolated_attribute_fast(v0.color.a().ToFloat32(), v1.color.a().ToFloat32(), v2.color.a().ToFloat32()) *
                               255)),
                 };
 
                 std::array<Common::Vec2<f24>, 3> uv;
-                uv[0].u() = get_interpolated_attribute(v0.tc0.u(), v1.tc0.u(), v2.tc0.u());
-                uv[0].v() = get_interpolated_attribute(v0.tc0.v(), v1.tc0.v(), v2.tc0.v());
-                uv[1].u() = get_interpolated_attribute(v0.tc1.u(), v1.tc1.u(), v2.tc1.u());
-                uv[1].v() = get_interpolated_attribute(v0.tc1.v(), v1.tc1.v(), v2.tc1.v());
-                uv[2].u() = get_interpolated_attribute(v0.tc2.u(), v1.tc2.u(), v2.tc2.u());
-                uv[2].v() = get_interpolated_attribute(v0.tc2.v(), v1.tc2.v(), v2.tc2.v());
+                uv[0].u() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc0.u().ToFloat32(), v1.tc0.u().ToFloat32(), v2.tc0.u().ToFloat32()));
+                uv[0].v() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc0.v().ToFloat32(), v1.tc0.v().ToFloat32(), v2.tc0.v().ToFloat32()));
+                uv[1].u() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc1.u().ToFloat32(), v1.tc1.u().ToFloat32(), v2.tc1.u().ToFloat32()));
+                uv[1].v() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc1.v().ToFloat32(), v1.tc1.v().ToFloat32(), v2.tc1.v().ToFloat32()));
+                uv[2].u() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc2.u().ToFloat32(), v1.tc2.u().ToFloat32(), v2.tc2.u().ToFloat32()));
+                uv[2].v() = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc2.v().ToFloat32(), v1.tc2.v().ToFloat32(), v2.tc2.v().ToFloat32()));
 
                 // Sample bound texture units.
-                const f24 tc0_w = get_interpolated_attribute(v0.tc0_w, v1.tc0_w, v2.tc0_w);
+                const f24 tc0_w = f24::FromFloat32(get_interpolated_attribute_fast(v0.tc0_w.ToFloat32(), v1.tc0_w.ToFloat32(), v2.tc0_w.ToFloat32()));
                 const auto texture_color = TextureColor(uv, textures, tc0_w);
 
                 Common::Vec4<u8> primary_fragment_color = {0, 0, 0, 0};
@@ -428,20 +379,17 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
                 if (!regs.lighting.disable) {
                     const auto normquat =
                         Common::Quaternion<f32>{
-                            {get_interpolated_attribute(v0.quat.x, v1.quat.x, v2.quat.x)
-                                 .ToFloat32(),
-                             get_interpolated_attribute(v0.quat.y, v1.quat.y, v2.quat.y)
-                                 .ToFloat32(),
-                             get_interpolated_attribute(v0.quat.z, v1.quat.z, v2.quat.z)
-                                 .ToFloat32()},
-                            get_interpolated_attribute(v0.quat.w, v1.quat.w, v2.quat.w).ToFloat32(),
+                            {get_interpolated_attribute_fast(v0.quat.x.ToFloat32(), v1.quat.x.ToFloat32(), v2.quat.x.ToFloat32()),
+                             get_interpolated_attribute_fast(v0.quat.y.ToFloat32(), v1.quat.y.ToFloat32(), v2.quat.y.ToFloat32()),
+                             get_interpolated_attribute_fast(v0.quat.z.ToFloat32(), v1.quat.z.ToFloat32(), v2.quat.z.ToFloat32())},
+                            get_interpolated_attribute_fast(v0.quat.w.ToFloat32(), v1.quat.w.ToFloat32(), v2.quat.w.ToFloat32()),
                         }
                             .Normalized();
 
                     const Common::Vec3f view{
-                        get_interpolated_attribute(v0.view.x, v1.view.x, v2.view.x).ToFloat32(),
-                        get_interpolated_attribute(v0.view.y, v1.view.y, v2.view.y).ToFloat32(),
-                        get_interpolated_attribute(v0.view.z, v1.view.z, v2.view.z).ToFloat32(),
+                        get_interpolated_attribute_fast(v0.view.x.ToFloat32(), v1.view.x.ToFloat32(), v2.view.x.ToFloat32()),
+                        get_interpolated_attribute_fast(v0.view.y.ToFloat32(), v1.view.y.ToFloat32(), v2.view.y.ToFloat32()),
+                        get_interpolated_attribute_fast(v0.view.z.ToFloat32(), v1.view.z.ToFloat32(), v2.view.z.ToFloat32()),
                     };
                     std::tie(primary_fragment_color, secondary_fragment_color) =
                         ComputeFragmentsColors(regs.lighting, state.lighting, normquat, view,

@@ -950,14 +950,14 @@ unsigned InterpreterMainLoop(ARMul_State* cpu) {
 // clunky switch statement.
 #if defined __GNUC__ || (defined __clang__ && !defined _MSC_VER)
 #define GOTO_NEXT_INST                                                                             \
-    GDB_BP_CHECK;                                                                                  \
+                                                                                      \
     if (num_instrs >= cpu->NumInstrsToExecute)                                                     \
         goto END;                                                                                  \
     num_instrs++;                                                                                  \
     goto* InstLabel[inst_base->idx]
 #else
 #define GOTO_NEXT_INST                                                                             \
-    GDB_BP_CHECK;                                                                                  \
+                                                                                      \
     if (num_instrs >= cpu->NumInstrsToExecute)                                                     \
         goto END;                                                                                  \
     num_instrs++;                                                                                  \
@@ -1608,7 +1608,7 @@ unsigned InterpreterMainLoop(ARMul_State* cpu) {
     std::size_t ptr;
 
     LOAD_NZCVT;
-DISPATCH : {
+DISPATCH : { GDB_BP_CHECK;
     if (!cpu->NirqSig) {
         if (!(cpu->Cpsr & 0x80)) {
             goto END;

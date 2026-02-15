@@ -55,10 +55,9 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
     info.pixels.resize(info.width * info.height * 4);
 
     if (framebuffer.color_format == GPU::Regs::PixelFormat::RGBA8) {
-        for (u32 y = 0; y < info.height; y++) {
-            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride - 1) * bpp;
-            for (u32 x = 0; x < info.width; x++) {
-                const u8* pixel = src_line - x * bpp;
+        for (u32 x = 0; x < info.width; x++) {
+            for (u32 y = 0; y < info.height; y++) {
+                const u8* pixel = framebuffer_data + (y * pixel_stride + pixel_stride - 1 - x) * bpp;
                 u8* dest = info.pixels.data() + (x * info.height + y) * 4;
                 dest[0] = pixel[3];
                 dest[1] = pixel[2];
@@ -67,10 +66,9 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
             }
         }
     } else if (framebuffer.color_format == GPU::Regs::PixelFormat::RGB8) {
-        for (u32 y = 0; y < info.height; y++) {
-            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride - 1) * bpp;
-            for (u32 x = 0; x < info.width; x++) {
-                const u8* pixel = src_line - x * bpp;
+        for (u32 x = 0; x < info.width; x++) {
+            for (u32 y = 0; y < info.height; y++) {
+                const u8* pixel = framebuffer_data + (y * pixel_stride + pixel_stride - 1 - x) * bpp;
                 u8* dest = info.pixels.data() + (x * info.height + y) * 4;
                 dest[0] = pixel[2];
                 dest[1] = pixel[1];

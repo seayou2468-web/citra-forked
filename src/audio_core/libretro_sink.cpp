@@ -17,6 +17,7 @@ namespace AudioCore {
 
 struct LibRetroSink::Impl {
     std::function<void(s16*, std::size_t)> cb;
+    std::vector<s16> buffer;
 };
 
 LibRetroSink::LibRetroSink(std::string target_device_name) : impl(std::make_unique<Impl>()) {}
@@ -32,11 +33,13 @@ void LibRetroSink::SetCallback(std::function<void(s16*, std::size_t)> cb) {
 }
 
 void LibRetroSink::OnAudioSubmission(std::size_t frames) {
-    std::vector<s16> buffer(frames * 2);
+    if (this->impl->buffer.size() < frames * 2) {
+        this->impl->buffer.resize(frames * 2);
+    }
 
-    this->impl->cb(buffer.data(), buffer.size() / 2);
+    this->impl->cb(this->impl->buffer.data(), frames);
 
-    LibRetro::SubmitAudio(buffer.data(), buffer.size() / 2);
+    LibRetro::SubmitAudio(this->impl->buffer.data(), frames);
 }
 
 std::vector<std::string> ListLibretroSinkDevices() {
