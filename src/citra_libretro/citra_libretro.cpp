@@ -591,7 +591,7 @@ bool retro_load_game(const struct retro_game_info* info) {
     const Core::System::ResultStatus load_result{Core::System::GetInstance().Load(
         *emu_instance->emu_window, LibRetro::settings.file_path)};
 
-    if (load_result == Core::System::ResultStatus::Success) {
+    if (load_result == Core::System::ResultStatus::Success && emu_instance->emu_window) {
         emu_instance->emu_window->UpdateLayout();
         emu_instance->emu_window->SwapBuffers();
     }

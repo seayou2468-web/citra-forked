@@ -55,7 +55,7 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
 
     if (framebuffer.color_format == GPU::Regs::PixelFormat::RGBA8) {
         for (u32 y = 0; y < info.height; y++) {
-            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride) * bpp;
+            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride - 1) * bpp;
             for (u32 x = 0; x < info.width; x++) {
                 const u8* pixel = src_line - x * bpp;
                 u8* dest = info.pixels.data() + (x * info.height + y) * 4;
@@ -67,7 +67,7 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
         }
     } else if (framebuffer.color_format == GPU::Regs::PixelFormat::RGB8) {
         for (u32 y = 0; y < info.height; y++) {
-            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride) * bpp;
+            const u8* src_line = framebuffer_data + (y * pixel_stride + pixel_stride - 1) * bpp;
             for (u32 x = 0; x < info.width; x++) {
                 const u8* pixel = src_line - x * bpp;
                 u8* dest = info.pixels.data() + (x * info.height + y) * 4;
@@ -81,7 +81,7 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
         // Fallback for less common formats
         for (u32 y = 0; y < info.height; y++) {
             for (u32 x = 0; x < info.width; x++) {
-                const u8* pixel = framebuffer_data + (y * pixel_stride + pixel_stride - x) * bpp;
+                const u8* pixel = framebuffer_data + (y * pixel_stride + pixel_stride - 1 - x) * bpp;
                 const Common::Vec4 color = [&] {
                     switch (framebuffer.color_format) {
                     case GPU::Regs::PixelFormat::RGB565:
