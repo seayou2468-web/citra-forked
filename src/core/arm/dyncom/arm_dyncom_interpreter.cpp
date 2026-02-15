@@ -1752,8 +1752,10 @@ BBL_INST : {
         if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
             __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
             ptr = cpu->instruction_cache[cache_idx].ptr;
+            ptr = cpu->instruction_cache[cache_idx].ptr;
             inst_base = (arm_inst*)&trans_cache_buf[ptr];
             num_instrs++;
+            cpu->Cpsr = (cpu->Cpsr & 0xffffffdf) | (cpu->TFlag << 5);
             goto* InstLabel[inst_base->idx];
         }
         goto DISPATCH;
@@ -1852,9 +1854,11 @@ BXJ_INST : {
         const u32 jmp_addr = cpu->Reg[15];
         const u32 cache_idx = (jmp_addr >> 1) & 0x3FFFF;
         if (__builtin_expect(cpu->instruction_cache[cache_idx].tag == jmp_addr, 1) &&
-            __builtin_expect(num_instrs < cpu->NumInstrsToExecute, 1)) {
             ptr = cpu->instruction_cache[cache_idx].ptr;
             inst_base = (arm_inst*)&trans_cache_buf[ptr];
+            num_instrs++;
+            cpu->Cpsr = (cpu->Cpsr & 0xffffffdf) | (cpu->TFlag << 5);
+            goto* InstLabel[inst_base->idx];
             num_instrs++;
             goto* InstLabel[inst_base->idx];
         }

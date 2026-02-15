@@ -535,10 +535,9 @@ void retro_run() {
     // or handled by the emu_window.
 
 
-}
-
-
-
+    if (load_result == Core::System::ResultStatus::Success && emu_instance->emu_window) {
+        emu_instance->emu_window->UpdateLayout();
+    }
 void context_reset() {
     if (!Core::System::GetInstance().IsPoweredOn()) {
         LOG_CRITICAL(Frontend, "Cannot reset system core if isn't on!");
@@ -691,17 +690,23 @@ bool retro_unserialize(const void* data, size_t size) {
 }
 
 void* retro_get_memory_data(unsigned id) {
-    if ( id == RETRO_MEMORY_SYSTEM_RAM )
-        return Core::System::GetInstance().Memory().GetFCRAMPointer(
-            Core::System::GetInstance().Kernel().memory_regions[0]->base
-        );
+    if (id == RETRO_MEMORY_SYSTEM_RAM) {
+        auto& kernel = Core::System::GetInstance().Kernel();
+        if (kernel.memory_regions.empty() || !kernel.memory_regions[0])
+            return nullptr;
+        return Core::System::GetInstance().Memory().GetFCRAMPointer(kernel.memory_regions[0]->base);
+    }
 
     return NULL;
 }
 
 size_t retro_get_memory_size(unsigned id) {
-    if ( id == RETRO_MEMORY_SYSTEM_RAM )
-        return Core::System::GetInstance().Kernel().memory_regions[0]->size;
+    if (id == RETRO_MEMORY_SYSTEM_RAM) {
+        auto& kernel = Core::System::GetInstance().Kernel();
+        if (kernel.memory_regions.empty() || !kernel.memory_regions[0])
+            return 0;
+        return kernel.memory_regions[0]->size;
+    }
 
     return 0;
 }
