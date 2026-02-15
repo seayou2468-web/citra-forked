@@ -1,3 +1,6 @@
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+#endif
 // Copyright 2015 Citra Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
@@ -304,26 +307,32 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
 
     // Enter rasterization loop, starting at the center of the topleft bounding box corner.
     // TODO: Not sure if looping through x first might be faster
+    const s32 dw0_dx = static_cast<s32>(static_cast<u16>(vtxpos[1].y)) - static_cast<s32>(static_cast<u16>(vtxpos[2].y));
+    const s32 dw1_dx = static_cast<s32>(static_cast<u16>(vtxpos[2].y)) - static_cast<s32>(static_cast<u16>(vtxpos[0].y));
+    const s32 dw2_dx = static_cast<s32>(static_cast<u16>(vtxpos[0].y)) - static_cast<s32>(static_cast<u16>(vtxpos[1].y));
+
     for (u16 y = min_y + 8; y < max_y; y += 0x10) {
-        const auto process_scanline = [&, y] {
+        const auto process_scanline = [&, y, dw0_dx, dw1_dx, dw2_dx] {
+            s32 w0 = bias0 + SignedArea(vtxpos[1].xy(), vtxpos[2].xy(), {min_x + 8, y});
+            s32 w1 = bias1 + SignedArea(vtxpos[2].xy(), vtxpos[0].xy(), {min_x + 8, y});
+            s32 w2 = bias2 + SignedArea(vtxpos[0].xy(), vtxpos[1].xy(), {min_x + 8, y});
+
             for (u16 x = min_x + 8; x < max_x; x += 0x10) {
                 __builtin_prefetch(&fb, 1, 3);
                 // Do not process the pixel if it's inside the scissor box and the scissor mode is
                 // set to Exclude.
                 if (regs.rasterizer.scissor_test.mode == RasterizerRegs::ScissorMode::Exclude) {
                     if (x >= scissor_x1 && x < scissor_x2 && y >= scissor_y1 && y < scissor_y2) {
+                        w0 += dw0_dx; w1 += dw1_dx; w2 += dw2_dx;
                         continue;
                     }
                 }
 
                 // Calculate the barycentric coordinates w0, w1 and w2
-                const s32 w0 = bias0 + SignedArea(vtxpos[1].xy(), vtxpos[2].xy(), {x, y});
-                const s32 w1 = bias1 + SignedArea(vtxpos[2].xy(), vtxpos[0].xy(), {x, y});
-                const s32 w2 = bias2 + SignedArea(vtxpos[0].xy(), vtxpos[1].xy(), {x, y});
                 const s32 wsum = w0 + w1 + w2;
 
                 // If current pixel is not covered by the current primitive
-                if (w0 < 0 || w1 < 0 || w2 < 0) {
+                if (__builtin_expect((w0 | w1 | w2) < 0, 0)) {
                     continue;
                 }
 
@@ -467,6 +476,7 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
                 if (regs.framebuffer.framebuffer.allow_color_write != 0) {
                     fb.DrawPixel(x >> 4, y >> 4, result);
                 }
+                w0 += dw0_dx; w1 += dw1_dx; w2 += dw2_dx;
             }
         };
         sw_workers.QueueWork(std::move(process_scanline));

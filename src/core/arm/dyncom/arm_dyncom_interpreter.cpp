@@ -934,9 +934,8 @@ unsigned InterpreterMainLoop(ARMul_State* cpu) {
 #define GDB_BP_CHECK
 #else
 #define GDB_BP_CHECK                                                                               \
-    cpu->Cpsr &= ~(1 << 5);                                                                        \
-    cpu->Cpsr |= cpu->TFlag << 5;                                                                  \
-    if (GDBStub::IsServerEnabled()) {                                                              \
+    if (__builtin_expect(GDBStub::IsServerEnabled(), 0)) {                                         \
+        cpu->Cpsr = (cpu->Cpsr & 0x0fffffdf) | (cpu->TFlag << 5);                                  \
         if (GDBStub::IsMemoryBreak()) {                                                            \
             goto END;                                                                              \
         } else if (breakpoint_data.type != GDBStub::BreakpointType::None &&                        \
