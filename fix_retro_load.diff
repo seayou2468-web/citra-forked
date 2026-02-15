@@ -1,0 +1,16 @@
+<<<<<<< SEARCH
+    emu_instance->emu_window->UpdateLayout();
+    emu_instance->emu_window->SwapBuffers();
+    const Core::System::ResultStatus load_result{Core::System::GetInstance().Load(
+    emu_instance->emu_window->UpdateLayout();
+    emu_instance->emu_window->SwapBuffers();
+        *emu_instance->emu_window, LibRetro::settings.file_path)};
+=======
+    const Core::System::ResultStatus load_result{Core::System::GetInstance().Load(
+        *emu_instance->emu_window, LibRetro::settings.file_path)};
+
+    if (load_result == Core::System::ResultStatus::Success) {
+        emu_instance->emu_window->UpdateLayout();
+        emu_instance->emu_window->SwapBuffers();
+    }
+>>>>>>> REPLACE

@@ -144,9 +144,16 @@ FramebufferLayout MobilePortraitFrameLayout(u32 width, u32 height, bool swapped)
         bot_screen = bot_screen.TranslateX((top_screen.GetWidth() - bot_screen.GetWidth()) / 2);
     }
 
+    // Center the pair of screens vertically
+    const u32 total_height = top_screen.GetHeight() + bot_screen.GetHeight();
+    const u32 offset_y = (height - total_height) / 2;
+
     // Move the top screen to the bottom if we are swapped.
     res.top_screen = swapped ? top_screen.TranslateY(bot_screen.GetHeight()) : top_screen;
     res.bottom_screen = swapped ? bot_screen : bot_screen.TranslateY(top_screen.GetHeight());
+
+    res.top_screen = res.top_screen.TranslateY(offset_y);
+    res.bottom_screen = res.bottom_screen.TranslateY(offset_y);
 
     return res;
 }

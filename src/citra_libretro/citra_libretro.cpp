@@ -591,6 +591,11 @@ bool retro_load_game(const struct retro_game_info* info) {
     const Core::System::ResultStatus load_result{Core::System::GetInstance().Load(
         *emu_instance->emu_window, LibRetro::settings.file_path)};
 
+    if (load_result == Core::System::ResultStatus::Success) {
+        emu_instance->emu_window->UpdateLayout();
+        emu_instance->emu_window->SwapBuffers();
+    }
+
     switch (load_result) {
     case Core::System::ResultStatus::ErrorGetLoader:
         LOG_CRITICAL(Frontend, "Failed to obtain loader for {}!",
