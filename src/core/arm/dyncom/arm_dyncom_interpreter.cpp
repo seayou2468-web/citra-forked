@@ -934,7 +934,7 @@ unsigned InterpreterMainLoop(ARMul_State* cpu) {
 #define GDB_BP_CHECK
 #else
 #define GDB_BP_CHECK                                                                               \
-    cpu->Cpsr = (cpu->Cpsr & 0x0fffffdf) | (cpu->TFlag << 5);                                      \
+    cpu->Cpsr = (cpu->Cpsr & 0xffffffdf) | (cpu->TFlag << 5);                                      \
     if (__builtin_expect(GDBStub::IsServerEnabled(), 0)) {                                         \
         if (GDBStub::IsMemoryBreak()) {                                                            \
             goto END;                                                                              \
@@ -1380,7 +1380,7 @@ unsigned InterpreterMainLoop(ARMul_State* cpu) {
 #define UPDATE_CFLAG_WITH_SC (cpu->CFlag = cpu->shifter_carry_out)
 
 #define SAVE_NZCVT                                                                                 \
-    cpu->Cpsr = (cpu->Cpsr & 0x0fffffdf) | (cpu->NFlag << 31) | (cpu->ZFlag << 30) |               \
+    cpu->Cpsr = (cpu->Cpsr & 0xfffffffdf) | (cpu->NFlag << 31) | (cpu->ZFlag << 30) |               \
                 (cpu->CFlag << 29) | (cpu->VFlag << 28) | (cpu->TFlag << 5)
 #define LOAD_NZCVT                                                                                 \
     cpu->NFlag = (cpu->Cpsr >> 31);                                                                \

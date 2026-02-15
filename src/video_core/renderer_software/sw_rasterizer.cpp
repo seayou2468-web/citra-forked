@@ -307,9 +307,9 @@ void RasterizerSoftware::ProcessTriangle(const Vertex& v0, const Vertex& v1, con
 
     // Enter rasterization loop, starting at the center of the topleft bounding box corner.
     // TODO: Not sure if looping through x first might be faster
-    const s32 dw0_dx = (static_cast<s32>(static_cast<u16>(vtxpos[1].y)) - static_cast<s32>(static_cast<u16>(vtxpos[2].y))) << 4;
-    const s32 dw1_dx = (static_cast<s32>(static_cast<u16>(vtxpos[2].y)) - static_cast<s32>(static_cast<u16>(vtxpos[0].y))) << 4;
-    const s32 dw2_dx = (static_cast<s32>(static_cast<u16>(vtxpos[0].y)) - static_cast<s32>(static_cast<u16>(vtxpos[1].y))) << 4;
+    const s32 dw0_dx = (static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[1].y))) - static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[2].y)))) << 4;
+    const s32 dw1_dx = (static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[2].y))) - static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[0].y)))) << 4;
+    const s32 dw2_dx = (static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[0].y))) - static_cast<s32>(static_cast<s16>(static_cast<u16>(vtxpos[1].y)))) << 4;
 
     for (u16 y = min_y + 8; y < max_y; y += 0x10) {
         const auto process_scanline = [&, y, dw0_dx, dw1_dx, dw2_dx] {

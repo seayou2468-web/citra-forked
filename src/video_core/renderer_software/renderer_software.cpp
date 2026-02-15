@@ -47,6 +47,7 @@ void RendererSoftware::LoadFBToScreenInfo(int i) {
         framebuffer.active_fb == 0 ? framebuffer.address_left1 : framebuffer.address_left2;
     const s32 bpp = GPU::Regs::BytesPerPixel(framebuffer.color_format);
     const u8* framebuffer_data = memory.GetPhysicalPointer(framebuffer_addr);
+    if (!framebuffer_data) return;
 
     const s32 pixel_stride = framebuffer.stride / bpp;
     info.height = framebuffer.height;
